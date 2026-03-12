@@ -94,7 +94,13 @@ function PropertyPage() {
 
     <div className="container mt-4">
 
-      <h2 style={{ textAlign: "center", fontWeight: "bold", fontStyle: "italic" }}>
+      <h2
+        style={{
+          textAlign: "center",
+          fontWeight: "bold",
+          fontStyle: "italic"
+        }}
+      >
         Property {id}
       </h2>
 
@@ -128,56 +134,37 @@ function PropertyPage() {
 
 
 
-      {/* ADD UNIT */}
+      {/* ADD UNIT BOX */}
 
-      <div className="mt-5">
+      <div className="card p-3 mt-4" >
 
-        <h4
-          style={{
-            textAlign: "center",
-            fontWeight: "bold",
-            fontSize: "28px",
-          }}
-        >
-          Add Unit
-        </h4>
+        <h4 style={{ textAlign: "center" }}>Add Unit</h4>
 
-        <div className="row">
+        <div style={{ display: "flex", gap: "6px" }}>
 
-          <div className="col">
+          <input
+            className="form-control"
+            placeholder="Unit No"
+            value={unitNo}
+            onChange={e => setUnitNo(e.target.value)}
+          />
 
-            <input
-              className="form-control"
-              placeholder="Unit No"
-              value={unitNo}
-              onChange={e => setUnitNo(e.target.value)}
-            />
+          <select
+            className="form-control"
+            value={typeUnit}
+            onChange={e => setTypeUnit(e.target.value)}
+          >
+            <option value="flat">Flat</option>
+            <option value="shop">Shop</option>
+          </select>
 
-          </div>
-
-          <div className="col">
-
-            <select
-              className="form-control"
-              value={typeUnit}
-              onChange={e => setTypeUnit(e.target.value)}
-            >
-              <option value="flat">Flat</option>
-              <option value="shop">Shop</option>
-            </select>
-
-          </div>
-
-          <div className="col">
-
-            <button
-              className="btn btn-primary w-100"
-              onClick={addUnit}
-            >
-              Add
-            </button>
-
-          </div>
+          <button
+            className="btn btn-primary"
+            style={{ width: "100px" }}
+            onClick={addUnit}
+          >
+            Add
+          </button>
 
         </div>
 
@@ -185,11 +172,11 @@ function PropertyPage() {
 
 
 
-      {/* UNIT TABLE */}
+      {/* UNIT DETAILS BOX */}
 
-      <div className="mt-4">
+      <div className="card p-3 mt-4" >
 
-        <h4 style={{ textAlign: "center"}}>Unit Details</h4>
+        <h4 style={{ textAlign: "center" }}>Unit Details</h4>
 
         <table className="table table-bordered text-center">
 
@@ -198,11 +185,11 @@ function PropertyPage() {
             <tr>
               <th>Unit No</th>
               <th>Type</th>
-              <th>Tenant Name</th>
+              <th>Tenant</th>
               <th>Rent</th>
-              <th>Current Status</th>
+              <th>Status</th>
               <th>Pending</th>
-              <th>Contract Left</th>
+              <th>Contract</th>
             </tr>
 
           </thead>
@@ -218,46 +205,45 @@ function PropertyPage() {
               >
 
                 <td>{u.unit_no}</td>
-
-                <td>{u.type === "flat" ? "Flat" : "Shop"}</td>
-
+                <td>{u.type}</td>
                 <td>{u.name ? u.name : "Vacant"}</td>
-
                 <td>{u.rent ? u.rent : "-"}</td>
-
                 <td>{u.paid > 0 ? "✔" : "❌"}</td>
-
                 <td>{u.pending ? u.pending : "-"}</td>
+                <td style={{ textAlign: "center", verticalAlign: "middle" }}>
 
-                <td>
+                {u.remaining != null ? (
 
-                  {u.remaining != null ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
 
-                    <span>
+                    {u.remaining}
 
-                      {u.remaining}
+                    {u.remaining <= 3 && (
 
-                      {u.remaining <= 3 && (
+                      <span
+                        style={{
+                          width: "10px",
+                          height: "10px",
+                          backgroundColor: "red",
+                          borderRadius: "50%",
+                          marginLeft: "6px"
+                        }}
+                      />
 
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: "10px",
-                            height: "10px",
-                            backgroundColor: "red",
-                            borderRadius: "50%",
-                            marginLeft: "6px"
-                          }}
-                        />
+                    )}
 
-                      )}
+                  </span>
 
-                    </span>
+                ) : "-"}
 
-                  ) : "-"}
-
-                </td>
-
+              </td>
+                
               </tr>
 
             ))}
@@ -270,78 +256,67 @@ function PropertyPage() {
 
 
 
-      {/* EXPENSE */}
+      {/* ADD EXPENSE BOX */}
 
-      <div className="mt-5">
+      <div className="card p-3 mt-4" >
 
-        <h4
-          style={{
-            textAlign: "center",
-            fontWeight: "bold",
-            fontSize: "28px"
-          }}
-        >
-          Add Expense
-        </h4>
+        <h4 style={{ textAlign: "center" }}>Add Expense</h4>
 
-        <div className="row">
+        <div style={{ display: "flex", gap: "6px" }}>
 
-          <div className="col">
-            <input
-              className="form-control"
-              placeholder="Type"
-              value={typeExpense}
-              onChange={e => setTypeExpense(e.target.value)}
-            />
-          </div>
+          <input
+            className="form-control"
+            placeholder="Type"
+            value={typeExpense}
+            onChange={e => setTypeExpense(e.target.value)}
+          />
 
-          <div className="col">
-            <input
-              className="form-control"
-              placeholder="Amount"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-            />
-          </div>
+          <input
+            className="form-control"
+            placeholder="Amount"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+          />
 
-          <div className="col">
-            <input
-              type="date"
-              className="form-control"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-            />
-          </div>
+          <input
+            type="date"
+            className="form-control"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+          />
 
-          <div className="col">
-            <select
-              className="form-control"
-              value={methodExpense}
-              onChange={e => setMethodExpense(e.target.value)}
-            >
-              <option value="cash">Cash</option>
-              <option value="Netbanking-Jamal">NetBanking-Jamal</option>
-              <option value="Netbanking-Mujahidh">NetBanking-Mujahidh</option>
-            </select>
-          </div>
+          <select
+            className="form-control"
+            value={methodExpense}
+            onChange={e => setMethodExpense(e.target.value)}
+          >
+            <option>Cash</option>
+            <option>Netbanking-Jamal</option>
+            <option>Netbanking-Mujahidh</option>
+          </select>
 
-          <div className="col">
-            <button
-              className="btn btn-primary w-100"
-              onClick={addExpense}
-            >
-              Add
-            </button>
-          </div>
+          <button
+            className="btn btn-primary"
+            style={{ width: "100px" }}
+            onClick={addExpense}
+          >
+            Add
+          </button>
 
         </div>
 
+      </div>
 
-        {/* EXPENSE TABLE */}
-        <br></br>
+
+
+      {/* EXPENSE DETAILS BOX */}
+
+      <div className="card p-3 mt-4" >
+
         <h4 style={{ textAlign: "center" }}>Expense Details</h4>
-        <table className="table table-bordered text-center mt-3">
-          
+
+        <table className="table table-bordered text-center">
+
           <thead className="table-dark">
 
             <tr>
@@ -359,9 +334,7 @@ function PropertyPage() {
               <tr key={e.id}>
 
                 <td>{e.type}</td>
-
                 <td>{e.amount}</td>
-
                 <td>{e.date?.split("T")[0]}</td>
 
               </tr>
@@ -373,6 +346,7 @@ function PropertyPage() {
         </table>
 
       </div>
+
 
     </div>
 

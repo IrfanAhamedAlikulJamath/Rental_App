@@ -16,8 +16,7 @@ function TenantPage() {
   const [startDate, setStartDate] = useState("");
 
   const [returned, setReturned] = useState("");
-
-  const [endDate, setEndDate] = useState("");   // ✅ NEW
+  const [endDate, setEndDate] = useState("");
 
   const [payments, setPayments] = useState([]);
 
@@ -28,7 +27,6 @@ function TenantPage() {
   const [payYear, setPayYear] = useState(new Date().getFullYear());
 
 
-  // LOAD TENANT + PAYMENTS
   useEffect(() => {
 
     axios
@@ -56,13 +54,9 @@ function TenantPage() {
   }, [id]);
 
 
-  // ADD TENANT
   const addTenant = () => {
 
-    if (!startDate) {
-      alert("Select start date");
-      return;
-    }
+    if (!startDate) return;
 
     axios.post("http://localhost:5000/tenant", {
 
@@ -75,54 +69,41 @@ function TenantPage() {
       start_date: startDate
 
     })
-    .then(() => {
-
-      window.location.reload();
-
-    });
+      .then(() => window.location.reload());
 
   };
 
 
-  // END CONTRACT (UPDATED)
   const endContract = () => {
 
-    if (!endDate) {
-      alert("Select end date");
-      return;
-    }
+    if (!endDate) return;
 
     const diff = returned - tenant.advance;
 
     axios.post("http://localhost:5000/tenant/end", {
 
       tenant_id: tenant.id,
-      end_date: endDate   // ✅ changed
+      end_date: endDate
 
     })
-    .then(() => {
-
-      axios.post("http://localhost:5000/advance", {
-
-        tenant_id: tenant.id,
-        advance_amount: tenant.advance,
-        returned_amount: returned,
-        diff,
-        date: endDate   // ✅ changed
-
-      })
       .then(() => {
 
-        window.location.reload();
+        axios.post("http://localhost:5000/advance", {
+
+          tenant_id: tenant.id,
+          advance_amount: tenant.advance,
+          returned_amount: returned,
+          diff,
+          date: endDate
+
+        })
+          .then(() => window.location.reload());
 
       });
-
-    });
 
   };
 
 
-  // ADD PAYMENT
   const addPayment = () => {
 
     if (!date || !payMonth) return;
@@ -137,13 +118,13 @@ function TenantPage() {
       payment_date: date + "T00:00:00"
 
     })
-    .then(() => {
+      .then(() => {
 
-      axios
-        .get("http://localhost:5000/payments/" + tenant.id)
-        .then(r => setPayments(r.data));
+        axios
+          .get("http://localhost:5000/payments/" + tenant.id)
+          .then(r => setPayments(r.data));
 
-    });
+      });
 
   };
 
@@ -152,38 +133,79 @@ function TenantPage() {
 
     <div className="container mt-4">
 
-      <h2>Unit {id}</h2>
+
+      {/* TITLE */}
+
+      <h2
+        style={{
+          textAlign: "center",
+          fontWeight: "bold",
+          fontStyle: "italic"
+        }}
+      >
+        Unit No : {tenant?.unit_no}
+      </h2>
+
 
 
       {tenant ? (
 
-        <div className="card p-3">
+        <>
 
-          <h4>Tenant Details</h4>
 
-          <p>Name: {tenant.name}</p>
-          <p>Phone: {tenant.phone}</p>
-          <p>Rent: {tenant.rent}</p>
-          <p>Advance: {tenant.advance}</p>
-          <p>Contract: {tenant.contract_months} months</p>
+          {/* TENANT DETAILS */}
 
-          <p>
-            Start Date:{" "}
-            {tenant.start_date
-              ? new Date(tenant.start_date).toLocaleDateString("en-GB")
-              : ""}
-          </p>
+          <div className="card p-3 mt-3">
+
+            <h4 style={{ textAlign: "center",}}>
+              Tenant Details:
+            </h4>
+
+            <div
+                style={{
+                  maxWidth: "300px",
+                  margin: "auto",
+                  fontSize: "20px",
+                  textAlign: "left"
+                }}
+              >
+
+                <div>Name: {tenant.name}</div>
+                <div>Phone: {tenant.phone}</div>
+                <div>Rent: {tenant.rent}</div>
+                <div>Advance: {tenant.advance}</div>
+                <div>Contract: {tenant.contract_months} months</div>
+                <div>
+                Start Date:
+                {" "}
+                {new Date(tenant.start_date)
+                  .toLocaleDateString("en-GB")}
+                </div>
+
+              </div>
+
+          </div>
+
 
 
           {/* PAYMENT */}
 
-          <div className="mt-4">
+          <div className="card p-3 mt-3">
 
-            <h5>Payment</h5>
+            <h4 style={{ textAlign: "center" }}>
+              Payment
+            </h4>
 
-            <div className="row">
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "8px",
+                flexWrap: "wrap"
+              }}
+            >
 
-              <div className="col">
+              <div style={{ width: "140px" }}>
                 <input
                   type="date"
                   className="form-control"
@@ -192,8 +214,8 @@ function TenantPage() {
                 />
               </div>
 
+              <div style={{ width: "140px" }}>
 
-              <div className="col">
                 <select
                   className="form-control"
                   value={payMonth}
@@ -216,38 +238,44 @@ function TenantPage() {
                   <option value="12">Dec</option>
 
                 </select>
+
               </div>
 
+              <div style={{ width: "140px" }}>
 
-              <div className="col">
                 <input
                   className="form-control"
                   value={payYear}
                   onChange={e => setPayYear(e.target.value)}
                 />
+
               </div>
 
+              <div style={{ width: "140px" }}>
 
-              <div className="col">
                 <select
                   className="form-control"
                   value={method}
                   onChange={e => setMethod(e.target.value)}
                 >
-                  <option value="Cash">Cash</option>
-                  <option value="Netbanking-Mujahidh">NetBanking - Mujahidh</option>
-                  <option value="Netbanking-Jamal">NetBanking - Jamal</option>
+
+                  <option>Cash</option>
+                  <option>Netbanking-Mujahidh</option>
+                  <option>Netbanking-Jamal</option>
+
                 </select>
+
               </div>
 
+              <div style={{ width: "140px" }}>
 
-              <div className="col">
                 <button
                   className="btn btn-success"
                   onClick={addPayment}
                 >
                   Add
                 </button>
+
               </div>
 
             </div>
@@ -255,74 +283,132 @@ function TenantPage() {
           </div>
 
 
+
           {/* HISTORY */}
 
-          <div className="mt-3">
+          <div className="card p-3 mt-3">
 
-            <h5>Payment History</h5>
+            <h4 style={{ textAlign: "center" }}>
+              Payment History
+            </h4>
 
-            <ul className="list-group">
+            <table className="table table-bordered text-center">
 
-              {payments.map((p, i) => (
+              <thead>
 
-                <li
-                  key={i}
-                  className="list-group-item"
-                  style={{
-                    backgroundColor:
-                      p.status === "Paid"
-                        ? "#d4edda"
-                        : "#fff3cd"
-                  }}
-                >
+                <tr>
+                  <th>Month</th>
+                  <th>Rent</th>
+                  <th>Status</th>
+                  <th>Payment Date</th>
+                </tr>
 
-                  {
-                    new Date(p.year, p.month - 1)
-                      .toLocaleString("en-IN", {
-                        month: "long",
-                        year: "numeric"
-                      })
-                  }
+              </thead>
 
-                  {" — " + p.status}
+              <tbody>
 
-                  {p.payment_date &&
-                    " | " +
-                    new Date(p.payment_date)
-                      .toLocaleDateString("en-GB")
-                  }
+                {payments.map((p, i) => (
 
-                </li>
+                  <tr
+                    key={i}
+                    style={{
+                      backgroundColor:
+                        p.status === "Paid"
+                          ? "#d4edda"
+                          : "#fff3cd"
+                    }}
+                  >
 
-              ))}
+                    <td>
 
-            </ul>
+                      {
+                        new Date(
+                          p.year,
+                          p.month - 1
+                        ).toLocaleString("en-IN", {
+                          month: "long",
+                          year: "numeric"
+                        })
+                      }
+
+                    </td>
+
+                    <td>{tenant.rent}</td>
+
+                    <td>{p.status}</td>
+
+                    <td>
+
+                      {p.payment_date
+                        ? new Date(p.payment_date)
+                          .toLocaleDateString("en-GB")
+                        : "-"}
+
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+          </div>
 
 
-            {/* END CONTRACT */}
 
-            <div className="mt-3">
+          {/* END CONTRACT */}
 
-              <h5>End Contract</h5>
+          <div className="card p-3 mt-3">
 
-              <label>End Date</label>
+            <h4 style={{ textAlign: "center" }}>
+              End Contract
+            </h4>
 
-              <input
-                type="date"
-                className="form-control"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-              />
+            <div
+              style={{
+                maxWidth: "320px",
+                margin: "auto",
+                textAlign: "center"
+              }}
+            >
 
-              <input
-                className="form-control mt-2"
-                placeholder="Returned advance"
-                value={returned}
-                onChange={e => setReturned(e.target.value)}
-              />
+              {/* inputs row */}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  marginBottom: "8px"
+                }}
+              >
+
+                <input
+                  className="form-control"
+                  placeholder="Returned advance"
+                  value={returned}
+                  onChange={e => setReturned(e.target.value)}
+                />
+
+                <input
+                  type="date"
+                  className="form-control"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                />
+
+              </div>
+
+
+              {/* button */}
 
               <button
-                className="btn btn-danger mt-2"
+                className="btn btn-danger"
+                style={{
+                  width: "150px",
+                  padding: "4px"
+                }}
                 onClick={endContract}
               >
                 End Contract
@@ -332,41 +418,60 @@ function TenantPage() {
 
           </div>
 
-        </div>
+
+        </>
 
       ) : (
 
-        <div>
+        <div className="card p-3">
 
           <h4>Add Tenant</h4>
 
-          <input className="form-control mt-2" placeholder="Name"
-            value={name} onChange={e => setName(e.target.value)} />
+          <input
+            className="form-control mt-2"
+            placeholder="Name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
 
-          <input className="form-control mt-2" placeholder="Phone"
-            value={phone} onChange={e => setPhone(e.target.value)} />
+          <input
+            className="form-control mt-2"
+            placeholder="Phone"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+          />
 
-          <input className="form-control mt-2" placeholder="Rent"
-            value={rent} onChange={e => setRent(e.target.value)} />
+          <input
+            className="form-control mt-2"
+            placeholder="Rent"
+            value={rent}
+            onChange={e => setRent(e.target.value)}
+          />
 
-          <input className="form-control mt-2" placeholder="Advance"
-            value={advance} onChange={e => setAdvance(e.target.value)} />
+          <input
+            className="form-control mt-2"
+            placeholder="Advance"
+            value={advance}
+            onChange={e => setAdvance(e.target.value)}
+          />
 
-          <input className="form-control mt-2" placeholder="Contract months"
-            value={contract} onChange={e => setContract(e.target.value)} />
+          <input
+            className="form-control mt-2"
+            placeholder="Contract months"
+            value={contract}
+            onChange={e => setContract(e.target.value)}
+          />
 
-          <div className="mt-2">
+          <label className="mt-2">
+            Start Date
+          </label>
 
-            <label>Start Date</label>
-
-            <input
-              type="date"
-              className="form-control"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-            />
-
-          </div>
+          <input
+            type="date"
+            className="form-control"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+          />
 
           <button
             className="btn btn-primary mt-2"

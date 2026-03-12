@@ -131,7 +131,7 @@ app.get("/tenant/:unitId", (req, res) => {
     const unitId = req.params.unitId;
 
     db.query(
-        "SELECT * FROM tenants WHERE unit_id = ? AND end_date IS NULL",
+        "SELECT t.*, u.unit_no FROM tenants t JOIN units u ON t.unit_id = u.id WHERE t.unit_id = ? AND t.end_date IS NULL",
         [unitId],
         (err, result) => {
             if (err) res.send(err);
@@ -778,7 +778,7 @@ app.get("/report", (req, res) => {
                     ORDER BY pr.name, u.unit_no
                     `,
                     [m,y,m,y,m,y, y,m, y,m],
-                    
+
                     (err2, unitRows) => {
 
                         if (err2) return res.send(err2);
