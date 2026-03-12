@@ -38,7 +38,7 @@ function Dashboard({
       <div className="row mt-4">
 
         <div className="col-md-4">
-          <div className="card bg-success text-white p-3">
+          <div className="card bg-primary text-white p-3">
             <h5>Current Income</h5>
             <h2>{data.current_income}</h2>
           </div>
@@ -52,7 +52,7 @@ function Dashboard({
         </div>
 
         <div className="col-md-4">
-          <div className="card bg-primary text-white p-3">
+          <div className="card bg-success text-white p-3">
             <h5>Current Profit</h5>
             <h2>{data.current_profit}</h2>
           </div>

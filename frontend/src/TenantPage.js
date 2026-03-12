@@ -13,9 +13,11 @@ function TenantPage() {
   const [rent, setRent] = useState("");
   const [advance, setAdvance] = useState("");
   const [contract, setContract] = useState("");
-  const [startDate, setStartDate] = useState(""); // ✅ new
+  const [startDate, setStartDate] = useState("");
 
   const [returned, setReturned] = useState("");
+
+  const [endDate, setEndDate] = useState("");   // ✅ NEW
 
   const [payments, setPayments] = useState([]);
 
@@ -82,15 +84,20 @@ function TenantPage() {
   };
 
 
-  // END CONTRACT
+  // END CONTRACT (UPDATED)
   const endContract = () => {
+
+    if (!endDate) {
+      alert("Select end date");
+      return;
+    }
 
     const diff = returned - tenant.advance;
 
     axios.post("http://localhost:5000/tenant/end", {
 
       tenant_id: tenant.id,
-      end_date: new Date().toISOString().split("T")[0]
+      end_date: endDate   // ✅ changed
 
     })
     .then(() => {
@@ -101,7 +108,7 @@ function TenantPage() {
         advance_amount: tenant.advance,
         returned_amount: returned,
         diff,
-        date: new Date().toISOString().split("T")[0]
+        date: endDate   // ✅ changed
 
       })
       .then(() => {
@@ -163,7 +170,7 @@ function TenantPage() {
           <p>
             Start Date:{" "}
             {tenant.start_date
-              ? new Date(tenant.start_date).toLocaleDateString()
+              ? new Date(tenant.start_date).toLocaleDateString("en-GB")
               : ""}
           </p>
 
@@ -194,6 +201,7 @@ function TenantPage() {
                 >
 
                   <option value="">Month</option>
+
                   <option value="1">Jan</option>
                   <option value="2">Feb</option>
                   <option value="3">Mar</option>
@@ -226,9 +234,9 @@ function TenantPage() {
                   value={method}
                   onChange={e => setMethod(e.target.value)}
                 >
-                  <option value="cash">Cash</option>
-                  <option value="netbanking-Mujahidh">NetBanking - Mujahidh</option>
-                  <option value="netbanking-Jamal">NetBanking - Jamal</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Netbanking-Mujahidh">NetBanking - Mujahidh</option>
+                  <option value="Netbanking-Jamal">NetBanking - Jamal</option>
                 </select>
               </div>
 
@@ -268,10 +276,20 @@ function TenantPage() {
                   }}
                 >
 
-                  {p.month}/{p.year} — {p.status}
+                  {
+                    new Date(p.year, p.month - 1)
+                      .toLocaleString("en-IN", {
+                        month: "long",
+                        year: "numeric"
+                      })
+                  }
+
+                  {" — " + p.status}
 
                   {p.payment_date &&
-                    " | " + p.payment_date.split("T")[0]
+                    " | " +
+                    new Date(p.payment_date)
+                      .toLocaleDateString("en-GB")
                   }
 
                 </li>
@@ -281,12 +299,23 @@ function TenantPage() {
             </ul>
 
 
+            {/* END CONTRACT */}
+
             <div className="mt-3">
 
               <h5>End Contract</h5>
 
+              <label>End Date</label>
+
               <input
+                type="date"
                 className="form-control"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+              />
+
+              <input
+                className="form-control mt-2"
                 placeholder="Returned advance"
                 value={returned}
                 onChange={e => setReturned(e.target.value)}
@@ -325,9 +354,6 @@ function TenantPage() {
 
           <input className="form-control mt-2" placeholder="Contract months"
             value={contract} onChange={e => setContract(e.target.value)} />
-
-
-          {/* START DATE */}
 
           <div className="mt-2">
 

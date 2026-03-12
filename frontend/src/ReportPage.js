@@ -5,7 +5,6 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
 
-// ✅ Month format
 const formatMonth = (ym) => {
 
   const parts = ym.split("-");
@@ -29,7 +28,7 @@ const formatMonth = (ym) => {
     "December"
   ];
 
-  return names[Number(month)] + "-" + year;
+  return names[Number(month)] + " " + year;
 
 };
 
@@ -49,14 +48,11 @@ function ReportPage() {
       .get("http://localhost:5000/report", {
         params: { from, to }
       })
-      .then(res => {
-        setReport(res.data);
-      });
+      .then(res => setReport(res.data));
 
   };
 
 
-  // PDF
   const exportPDF = () => {
 
     const input = document.getElementById("reportDiv");
@@ -86,14 +82,7 @@ function ReportPage() {
 
         pdf.addPage();
 
-        pdf.addImage(
-          imgData,
-          "PNG",
-          0,
-          position,
-          imgWidth,
-          imgHeight
-        );
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
 
         heightLeft -= pageHeight;
 
@@ -106,7 +95,6 @@ function ReportPage() {
   };
 
 
-  // PRINT
   const printReport = () => {
 
     const content =
@@ -125,8 +113,8 @@ function ReportPage() {
 
       <style>
       body { padding:20px }
-      table { width:100% }
-      th, td { padding:8px }
+      table { width:100%; text-align:center }
+      th, td { padding:8px; text-align:center }
       </style>
 
       </head>
@@ -146,72 +134,59 @@ function ReportPage() {
 
     <div className="container mt-4">
 
-      <h2>Monthly Report</h2>
+      <h2
+        style={{
+          textAlign: "center",
+          fontWeight: "bold",
+          fontStyle: "italic"
+        }}
+      >
+        Monthly Report
+      </h2>
 
 
       {/* FILTER */}
 
-      <div className="row mb-3">
+      <div className="row mb-3 mt-3 text-center">
 
         <div className="col">
-
           <input
             type="month"
             className="form-control"
             value={from}
             onChange={e => setFrom(e.target.value)}
           />
-
         </div>
 
         <div className="col">
-
           <input
             type="month"
             className="form-control"
             value={to}
             onChange={e => setTo(e.target.value)}
           />
-
         </div>
 
         <div className="col">
-
-          <button
-            className="btn btn-primary"
-            onClick={loadReport}
-          >
+          <button className="btn btn-primary w-100" onClick={loadReport}>
             Load
           </button>
-
         </div>
 
         <div className="col">
-
-          <button
-            className="btn btn-success"
-            onClick={exportPDF}
-          >
-            Export PDF
+          <button className="btn btn-success w-100" onClick={exportPDF}>
+            PDF
           </button>
-
         </div>
 
         <div className="col">
-
-          <button
-            className="btn btn-secondary"
-            onClick={printReport}
-          >
+          <button className="btn btn-secondary w-100" onClick={printReport}>
             Print
           </button>
-
         </div>
 
       </div>
 
-
-      {/* REPORT */}
 
       <div id="reportDiv">
 
@@ -220,63 +195,85 @@ function ReportPage() {
           let income = 0;
           let expense = 0;
 
-          m.units.forEach(u => {
-            income += Number(u.amount);
-          });
-
-          m.expenses.forEach(e => {
-            expense += Number(e.amount);
-          });
+          m.units.forEach(u => income += Number(u.amount));
+          m.expenses.forEach(e => expense += Number(e.amount));
 
           let profit = income - expense;
 
 
-          // property totals
           let propertyTotals = {};
 
           m.units.forEach(u => {
 
             if (!propertyTotals[u.property]) {
-              propertyTotals[u.property] = 0;
+              propertyTotals[u.property] = {
+                income: 0,
+                expense: 0
+              };
             }
 
-            propertyTotals[u.property] += Number(u.amount);
+            propertyTotals[u.property].income += Number(u.amount);
 
           });
 
           m.expenses.forEach(e => {
 
             if (!propertyTotals[e.property]) {
-              propertyTotals[e.property] = 0;
+              propertyTotals[e.property] = {
+                income: 0,
+                expense: 0
+              };
             }
 
-            propertyTotals[e.property] -= Number(e.amount);
+            propertyTotals[e.property].expense += Number(e.amount);
 
           });
-
 
 
           return (
 
             <div key={i} className="mt-5">
 
-              <h3>{formatMonth(m.month)}</h3>
+              <h3
+                style={{
+                  textAlign: "center",
+                  fontWeight: "bold",
+                  fontStyle: "italic"
+                }}
+              >
+                {formatMonth(m.month)}
+              </h3>
 
 
-              {/* MONTH TOTAL */}
+              {/* KPI */}
 
-              <div className="row mb-3">
+              <div className="row text-center mb-3">
 
                 <div className="col">
-                  <b>Income:</b> {income}
+                  <div className="card bg-primary text-white">
+                    <div className="card-body">
+                      Income
+                      <h5>{income}</h5>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="col">
-                  <b>Expense:</b> {expense}
+                  <div className="card bg-danger text-white">
+                    <div className="card-body">
+                      Expense
+                      <h5>{expense}</h5>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="col">
-                  <b>Profit:</b> {profit}
+                  <div className="card bg-success text-white">
+                    <div className="card-body">
+                      Profit
+                      <h5>{profit}</h5>
+                    </div>
+                  </div>
                 </div>
 
               </div>
@@ -284,29 +281,53 @@ function ReportPage() {
 
               {/* PROPERTY TOTAL */}
 
-              <h5>Property Totals</h5>
+              <h5 style={{ textAlign: "center", fontWeight: "bold" }}>
+                Property Totals
+              </h5>
 
-              <table className="table table-bordered">
+              <table className="table table-bordered text-center">
 
-                <thead>
+                <thead className="table-dark">
+
                   <tr>
                     <th>Property</th>
-                    <th>Net Profit</th>
+                    <th>Income</th>
+                    <th>Expense</th>
+                    <th>Net</th>
                   </tr>
+
                 </thead>
 
                 <tbody>
 
-                  {Object.keys(propertyTotals).map((p, k) => (
+                  {Object.keys(propertyTotals).map((p, k) => {
 
-                    <tr key={k}>
+                    const inc = propertyTotals[p].income;
+                    const exp = propertyTotals[p].expense;
+                    const net = inc - exp;
 
-                      <td>{p}</td>
-                      <td>{propertyTotals[p]}</td>
+                    return (
 
-                    </tr>
+                      <tr key={k}>
 
-                  ))}
+                        <td>{p}</td>
+                        <td>{inc}</td>
+                        <td>{exp}</td>
+
+                        <td
+                          style={{
+                            color: net >= 0 ? "green" : "red",
+                            fontWeight: "bold"
+                          }}
+                        >
+                          {net}
+                        </td>
+
+                      </tr>
+
+                    );
+
+                  })}
 
                 </tbody>
 
@@ -315,45 +336,83 @@ function ReportPage() {
 
               {/* RENT */}
 
-              <h5>Rent</h5>
+              <h5 style={{ textAlign: "center", fontWeight: "bold" }}>
+                Rent Details
+              </h5>
 
-              <table className="table table-bordered">
+              <table className="table table-bordered text-center">
 
-                <thead>
+                <thead className="table-dark">
+
                   <tr>
                     <th>Property</th>
-                    <th>Unit</th>
-                    <th>Tenant</th>
-                    <th>Amount</th>
+                    <th>Unit No</th>
+                    <th>Tenant Name</th>
+                    <th>Rent</th>
+                    <th>Status</th>
                     <th>Method</th>
                     <th>Date</th>
                   </tr>
+
                 </thead>
 
                 <tbody>
 
-                  {m.units.map((u, j) => (
+                  {m.units.map((u, j) => {
 
-                    <tr
-                      key={j}
-                      style={{
-                        backgroundColor:
-                          Number(u.amount) === 0
-                            ? "#fff3cd"
-                            : "white"
-                      }}
-                    >
+                    const vacant = !u.tenant;
 
-                      <td>{u.property}</td>
-                      <td>{u.unit_no}</td>
-                      <td>{u.tenant}</td>
-                      <td>{u.amount}</td>
-                      <td>{u.method}</td>
-                      <td>{u.payment_date}</td>
+                    return (
 
-                    </tr>
+                      <tr
+                        key={j}
+                        style={{
+                          backgroundColor:
+                            vacant
+                              ? "#eeeeee"
+                              : Number(u.amount) === 0
+                              ? "#fff3cd"
+                              : "white"
+                        }}
+                      >
 
-                  ))}
+                        <td>{u.property}</td>
+
+                        <td>{u.unit_no}</td>
+
+                        <td>
+                          {u.tenant ? u.tenant : "Vacant"}
+                        </td>
+
+                        <td>{u.amount}</td>
+
+                        <td
+                          style={{
+                            fontWeight: "bold",
+                            color:
+                              vacant
+                                ? "black"
+                                : Number(u.amount) > 0
+                                ? "green"
+                                : "red"
+                          }}
+                        >
+                          {vacant
+                            ? "-"
+                            : Number(u.amount) > 0
+                            ? "Paid"
+                            : "Unpaid"}
+                        </td>
+
+                        <td>{u.method}</td>
+
+                        <td>{u.payment_date}</td>
+
+                      </tr>
+
+                    );
+
+                  })}
 
                 </tbody>
 
@@ -362,18 +421,22 @@ function ReportPage() {
 
               {/* EXPENSE */}
 
-              <h5>Expenses</h5>
+              <h5 style={{ textAlign: "center", fontWeight: "bold" }}>
+                Expense Details
+              </h5>
 
-              <table className="table table-bordered">
+              <table className="table table-bordered text-center">
 
-                <thead>
+                <thead className="table-dark">
+
                   <tr>
                     <th>Property</th>
                     <th>Type</th>
                     <th>Amount</th>
-                    <th>Date</th>
                     <th>Method</th>
+                    <th>Date</th>
                   </tr>
+
                 </thead>
 
                 <tbody>
@@ -385,8 +448,9 @@ function ReportPage() {
                       <td>{e.property}</td>
                       <td>{e.type}</td>
                       <td>{e.amount}</td>
-                      <td>{e.date}</td>
                       <td>{e.method}</td>
+                      <td>{e.date}</td>
+                      
 
                     </tr>
 

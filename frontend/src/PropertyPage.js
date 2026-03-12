@@ -7,23 +7,17 @@ function PropertyPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-
-  // KPI
   const [data, setData] = useState({
     current_income: 0,
     current_expense: 0,
     current_profit: 0
   });
 
-
-  // UNITS DETAILS
   const [units, setUnits] = useState([]);
 
   const [unitNo, setUnitNo] = useState("");
   const [typeUnit, setTypeUnit] = useState("flat");
 
-
-  // EXPENSES
   const [expenses, setExpenses] = useState([]);
   const [typeExpense, setTypeExpense] = useState("");
   const [amount, setAmount] = useState("");
@@ -31,41 +25,31 @@ function PropertyPage() {
   const [methodExpense, setMethodExpense] = useState("cash");
 
 
-  // LOAD
   useEffect(() => {
 
-    // KPI
     axios
       .get("http://localhost:5000/property-dashboard/" + id)
       .then(res => setData(res.data));
 
-
-    // NEW API
     axios
       .get("http://localhost:5000/property-details/" + id)
       .then(res => setUnits(res.data));
 
-
-    // EXPENSES
     axios
       .get("http://localhost:5000/expenses/" + id)
       .then(res => setExpenses(res.data));
 
-
   }, [id]);
 
 
-  // ADD UNIT
   const addUnit = () => {
 
     if (!unitNo) return;
 
     axios.post("http://localhost:5000/units", {
-
       property_id: id,
       unit_no: unitNo,
       type: typeUnit
-
     })
     .then(() => {
 
@@ -80,7 +64,6 @@ function PropertyPage() {
   };
 
 
-  // ADD EXPENSE
   const addExpense = () => {
 
     if (!amount || !date) return;
@@ -111,31 +94,33 @@ function PropertyPage() {
 
     <div className="container mt-4">
 
-      <h2>Property {id}</h2>
+      <h2 style={{ textAlign: "center", fontWeight: "bold", fontStyle: "italic" }}>
+        Property {id}
+      </h2>
 
 
       {/* KPI */}
 
-      <div className="row mt-4">
+      <div className="row mt-4 text-center">
 
         <div className="col-md-4">
-          <div className="card bg-success text-white p-3">
+          <div className="card bg-primary text-white p-3">
             <h5>Current Income</h5>
-            <h2>{data.current_income}</h2>
+            <h3>{data.current_income}</h3>
           </div>
         </div>
 
         <div className="col-md-4">
           <div className="card bg-danger text-white p-3">
             <h5>Current Expense</h5>
-            <h2>{data.current_expense}</h2>
+            <h3>{data.current_expense}</h3>
           </div>
         </div>
 
         <div className="col-md-4">
-          <div className="card bg-primary text-white p-3">
+          <div className="card bg-success text-white p-3">
             <h5>Current Profit</h5>
-            <h2>{data.current_profit}</h2>
+            <h3>{data.current_profit}</h3>
           </div>
         </div>
 
@@ -147,7 +132,15 @@ function PropertyPage() {
 
       <div className="mt-5">
 
-        <h4>Add Unit</h4>
+        <h4
+          style={{
+            textAlign: "center",
+            fontWeight: "bold",
+            fontSize: "28px",
+          }}
+        >
+          Add Unit
+        </h4>
 
         <div className="row">
 
@@ -169,10 +162,8 @@ function PropertyPage() {
               value={typeUnit}
               onChange={e => setTypeUnit(e.target.value)}
             >
-
               <option value="flat">Flat</option>
               <option value="shop">Shop</option>
-
             </select>
 
           </div>
@@ -180,7 +171,7 @@ function PropertyPage() {
           <div className="col">
 
             <button
-              className="btn btn-primary"
+              className="btn btn-primary w-100"
               onClick={addUnit}
             >
               Add
@@ -198,18 +189,19 @@ function PropertyPage() {
 
       <div className="mt-4">
 
-        <h4>Units</h4>
+        <h4 style={{ textAlign: "center"}}>Unit Details</h4>
 
-        <table className="table table-bordered">
+        <table className="table table-bordered text-center">
 
-          <thead>
+          <thead className="table-dark">
 
             <tr>
-              <th>Unit</th>
+              <th>Unit No</th>
               <th>Type</th>
-              <th>Tenant</th>
+              <th>Tenant Name</th>
               <th>Rent</th>
-              <th>Paid</th>
+              <th>Current Status</th>
+              <th>Pending</th>
               <th>Contract Left</th>
             </tr>
 
@@ -227,19 +219,15 @@ function PropertyPage() {
 
                 <td>{u.unit_no}</td>
 
-                <td>{u.type}</td>
+                <td>{u.type === "flat" ? "Flat" : "Shop"}</td>
 
-                <td>
-                  {u.name ? u.name : "Vacant"}
-                </td>
+                <td>{u.name ? u.name : "Vacant"}</td>
 
-                <td>
-                  {u.rent ? u.rent : "-"}
-                </td>
+                <td>{u.rent ? u.rent : "-"}</td>
 
-                <td>
-                  {u.paid > 0 ? "✔" : "❌"}
-                </td>
+                <td>{u.paid > 0 ? "✔" : "❌"}</td>
+
+                <td>{u.pending ? u.pending : "-"}</td>
 
                 <td>
 
@@ -286,88 +274,105 @@ function PropertyPage() {
 
       <div className="mt-5">
 
-        <h4>Expenses</h4>
+        <h4
+          style={{
+            textAlign: "center",
+            fontWeight: "bold",
+            fontSize: "28px"
+          }}
+        >
+          Add Expense
+        </h4>
 
         <div className="row">
 
           <div className="col">
-
             <input
               className="form-control"
               placeholder="Type"
               value={typeExpense}
               onChange={e => setTypeExpense(e.target.value)}
             />
-
           </div>
 
           <div className="col">
-
             <input
               className="form-control"
               placeholder="Amount"
               value={amount}
               onChange={e => setAmount(e.target.value)}
             />
-
           </div>
 
           <div className="col">
-
             <input
               type="date"
               className="form-control"
               value={date}
               onChange={e => setDate(e.target.value)}
             />
-
           </div>
 
           <div className="col">
-
             <select
               className="form-control"
               value={methodExpense}
               onChange={e => setMethodExpense(e.target.value)}
             >
-
               <option value="cash">Cash</option>
-              <option value="netbanking">NetBanking</option>
-
+              <option value="Netbanking-Jamal">NetBanking-Jamal</option>
+              <option value="Netbanking-Mujahidh">NetBanking-Mujahidh</option>
             </select>
-
           </div>
 
           <div className="col">
-
             <button
-              className="btn btn-primary"
+              className="btn btn-primary w-100"
               onClick={addExpense}
             >
               Add
             </button>
-
           </div>
 
         </div>
 
 
-        <ul className="list-group mt-3">
+        {/* EXPENSE TABLE */}
+        <br></br>
+        <h4 style={{ textAlign: "center" }}>Expense Details</h4>
+        <table className="table table-bordered text-center mt-3">
+          
+          <thead className="table-dark">
 
-          {expenses.map(e => (
+            <tr>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Date</th>
+            </tr>
 
-            <li key={e.id} className="list-group-item">
+          </thead>
 
-              {e.date?.split("T")[0]} | {e.type} | {e.amount}
+          <tbody>
 
-            </li>
+            {expenses.map(e => (
 
-          ))}
+              <tr key={e.id}>
 
-        </ul>
+                <td>{e.type}</td>
+
+                <td>{e.amount}</td>
+
+                <td>{e.date?.split("T")[0]}</td>
+
+              </tr>
+
+            ))}
+
+          </tbody>
+
+        </table>
 
       </div>
-
 
     </div>
 
