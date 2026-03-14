@@ -133,9 +133,6 @@ function TenantPage() {
 
     <div className="container mt-4">
 
-
-      {/* TITLE */}
-
       <h2
         style={{
           textAlign: "center",
@@ -147,42 +144,40 @@ function TenantPage() {
       </h2>
 
 
-
       {tenant ? (
 
         <>
-
 
           {/* TENANT DETAILS */}
 
           <div className="card p-3 mt-3">
 
-            <h4 style={{ textAlign: "center",}}>
+            <h4 style={{ textAlign: "center" }}>
               Tenant Details:
             </h4>
 
             <div
-                style={{
-                  maxWidth: "300px",
-                  margin: "auto",
-                  fontSize: "20px",
-                  textAlign: "left"
-                }}
-              >
+              style={{
+                maxWidth: "300px",
+                margin: "auto",
+                fontSize: "20px",
+                textAlign: "left"
+              }}
+            >
 
-                <div>Name: {tenant.name}</div>
-                <div>Phone: {tenant.phone}</div>
-                <div>Rent: {tenant.rent}</div>
-                <div>Advance: {tenant.advance}</div>
-                <div>Contract: {tenant.contract_months} months</div>
-                <div>
+              <div>Name: {tenant.name}</div>
+              <div>Phone: {tenant.phone}</div>
+              <div>Rent: {tenant.rent}</div>
+              <div>Advance: {tenant.advance}</div>
+              <div>Contract: {tenant.contract_months} months</div>
+              <div>
                 Start Date:
                 {" "}
                 {new Date(tenant.start_date)
                   .toLocaleDateString("en-GB")}
-                </div>
-
               </div>
+
+            </div>
 
           </div>
 
@@ -215,15 +210,12 @@ function TenantPage() {
               </div>
 
               <div style={{ width: "140px" }}>
-
                 <select
                   className="form-control"
                   value={payMonth}
                   onChange={e => setPayMonth(e.target.value)}
                 >
-
                   <option value="">Month</option>
-
                   <option value="1">Jan</option>
                   <option value="2">Feb</option>
                   <option value="3">Mar</option>
@@ -236,46 +228,36 @@ function TenantPage() {
                   <option value="10">Oct</option>
                   <option value="11">Nov</option>
                   <option value="12">Dec</option>
-
                 </select>
-
               </div>
 
               <div style={{ width: "140px" }}>
-
                 <input
                   className="form-control"
                   value={payYear}
                   onChange={e => setPayYear(e.target.value)}
                 />
-
               </div>
 
               <div style={{ width: "140px" }}>
-
                 <select
                   className="form-control"
                   value={method}
                   onChange={e => setMethod(e.target.value)}
                 >
-
                   <option>Cash</option>
                   <option>Netbanking-Mujahidh</option>
                   <option>Netbanking-Jamal</option>
-
                 </select>
-
               </div>
 
               <div style={{ width: "140px" }}>
-
                 <button
                   className="btn btn-success"
                   onClick={addPayment}
                 >
                   Add
                 </button>
-
               </div>
 
             </div>
@@ -295,14 +277,12 @@ function TenantPage() {
             <table className="table table-bordered text-center">
 
               <thead>
-
                 <tr>
                   <th>Month</th>
                   <th>Rent</th>
                   <th>Status</th>
                   <th>Payment Date</th>
                 </tr>
-
               </thead>
 
               <tbody>
@@ -310,17 +290,16 @@ function TenantPage() {
                 {payments.map((p, i) => (
 
                   <tr
-                    key={i}
-                    style={{
-                      backgroundColor:
-                        p.status === "Paid"
-                          ? "#d4edda"
-                          : "#fff3cd"
-                    }}
-                  >
+  key={i}
+  style={{
+    backgroundColor:
+      p.payment_date
+        ? "#d4edda"   // paid → green
+        : "#fff3cd"   // default → yellow
+  }}
+>
 
                     <td>
-
                       {
                         new Date(
                           p.year,
@@ -330,7 +309,6 @@ function TenantPage() {
                           year: "numeric"
                         })
                       }
-
                     </td>
 
                     <td>{tenant.rent}</td>
@@ -338,12 +316,10 @@ function TenantPage() {
                     <td>{p.status}</td>
 
                     <td>
-
                       {p.payment_date
                         ? new Date(p.payment_date)
                           .toLocaleDateString("en-GB")
                         : "-"}
-
                     </td>
 
                   </tr>
@@ -374,8 +350,6 @@ function TenantPage() {
               }}
             >
 
-              {/* inputs row */}
-
               <div
                 style={{
                   display: "flex",
@@ -400,9 +374,6 @@ function TenantPage() {
 
               </div>
 
-
-              {/* button */}
-
               <button
                 className="btn btn-danger"
                 style={{
@@ -418,69 +389,86 @@ function TenantPage() {
 
           </div>
 
-
         </>
 
       ) : (
 
         <div className="card p-3">
 
-          <h4>Add Tenant</h4>
+  <h4 style={{ textAlign: "center" }}>
+    Add Tenant
+  </h4>
 
-          <input
-            className="form-control mt-2"
-            placeholder="Name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-          />
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center"
+    }}
+  >
 
-          <input
-            className="form-control mt-2"
-            placeholder="Phone"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-          />
+    <div style={{ width: "320px" }}>
 
-          <input
-            className="form-control mt-2"
-            placeholder="Rent"
-            value={rent}
-            onChange={e => setRent(e.target.value)}
-          />
+      <input
+        className="form-control mt-2"
+        placeholder="Name"
+        value={name}
+        onChange={e => setName(e.target.value)}
+      />
 
-          <input
-            className="form-control mt-2"
-            placeholder="Advance"
-            value={advance}
-            onChange={e => setAdvance(e.target.value)}
-          />
+      <input
+        className="form-control mt-2"
+        placeholder="Phone"
+        value={phone}
+        onChange={e => setPhone(e.target.value)}
+      />
 
-          <input
-            className="form-control mt-2"
-            placeholder="Contract months"
-            value={contract}
-            onChange={e => setContract(e.target.value)}
-          />
+      <input
+        className="form-control mt-2"
+        placeholder="Rent"
+        value={rent}
+        onChange={e => setRent(e.target.value)}
+      />
 
-          <label className="mt-2">
-            Start Date
-          </label>
+      <input
+        className="form-control mt-2"
+        placeholder="Advance"
+        value={advance}
+        onChange={e => setAdvance(e.target.value)}
+      />
 
-          <input
-            type="date"
-            className="form-control"
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-          />
+      <input
+        className="form-control mt-2"
+        placeholder="Contract months"
+        value={contract}
+        onChange={e => setContract(e.target.value)}
+      />
 
-          <button
-            className="btn btn-primary mt-2"
-            onClick={addTenant}
-          >
-            Save
-          </button>
+      <label className="mt-2">
+        Start Date
+      </label>
 
-        </div>
+      <input
+        type="date"
+        className="form-control"
+        value={startDate}
+        onChange={e => setStartDate(e.target.value)}
+      />
+
+      <div style={{ textAlign: "center" }}>
+        <button
+          className="btn btn-primary mt-3"
+          style={{ width: "120px" }}
+          onClick={addTenant}
+        >
+          Save
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
 
       )}
 

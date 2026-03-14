@@ -38,7 +38,7 @@ function Dashboard({
         <button
           className="btn"
           style={{
-            backgroundColor: "#6f42c1",
+            backgroundColor: "#8f6cd1",
             color: "white",
             fontWeight: "bold",
             padding: "8px 20px"

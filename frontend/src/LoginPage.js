@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import logo from "./assets/logo.png";
 
 function LoginPage() {
 
@@ -51,24 +52,34 @@ function LoginPage() {
         background: "#f2f2f2",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center"
+        justifyContent: "flex-start",
+        alignItems: "center",
+        paddingTop: "80px"
       }}
     >
 
-      <h1
-        style={{
-          fontWeight: "bold",
-          fontStyle: "italic",
-          fontSize: "40px",
-          marginBottom: "20px"
+      <div style={{ textAlign: "center", marginBottom: "10px" }}>
+
+        <img
+          src={logo}
+          alt="logo"
+          style={{
+            width: "200px",
+            height: "auto",
+            marginBottom: "10px"
+          }}
+        />
+
+      </div>
+
+
+      {/* form added */}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          login();
         }}
-      >
-        HR Properties
-      </h1>
-
-
-      <div
         style={{
           width: "420px",
           padding: "30px",
@@ -116,13 +127,13 @@ function LoginPage() {
 
 
         <button
+          type="submit"
           className="btn btn-primary mt-3 w-100"
-          onClick={login}
         >
           Login
         </button>
 
-      </div>
+      </form>
 
     </div>
 
