@@ -350,6 +350,8 @@ function ReportPage() {
                     <th>Tenant Name</th>
                     <th>Rent</th>
                     <th>Status</th>
+                    <th>Pending</th>
+                    <th>Paid For</th>
                     <th>Method</th>
                     <th>Date</th>
                   </tr>
@@ -384,29 +386,29 @@ function ReportPage() {
                           {u.tenant ? u.tenant : "Vacant"}
                         </td>
 
-                        <td>{u.amount}</td>
+                        <td>{u.rent ? u.rent : 0}</td>
 
                         <td
                           style={{
                             fontWeight: "bold",
                             color:
-                              vacant
-                                ? "black"
-                                : Number(u.amount) > 0
+                              u.status === "Paid"
                                 ? "green"
-                                : "red"
+                                : u.status === "Unpaid"
+                                ? "red"
+                                : "black"
                           }}
                         >
-                          {vacant
-                            ? "-"
-                            : Number(u.amount) > 0
-                            ? "Paid"
-                            : "Unpaid"}
+                          {u.status}
                         </td>
 
-                        <td>{u.method}</td>
+                        <td>{u.pending}</td>
 
-                        <td>{u.payment_date}</td>
+                        <td>{u.paid_for ? u.paid_for : "-"}</td>
+                        <td>{u.method ? u.method : "-"}</td>
+
+                        <td>{u.payment_date ? u.payment_date : "-"}</td>
+
 
                       </tr>
 

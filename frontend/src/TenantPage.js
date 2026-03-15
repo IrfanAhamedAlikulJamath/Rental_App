@@ -15,6 +15,8 @@ function TenantPage() {
   const [contract, setContract] = useState("");
   const [startDate, setStartDate] = useState("");
 
+  const[extendMonths, setExtendMonths]=useState("");
+
   const [returned, setReturned] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -25,6 +27,14 @@ function TenantPage() {
 
   const [payMonth, setPayMonth] = useState("");
   const [payYear, setPayYear] = useState(new Date().getFullYear());
+
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editRent, setEditRent] = useState("");
+  const [editAdvance, setEditAdvance] = useState("");
+  const [editContract, setEditContract] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
 
 
   useEffect(() => {
@@ -103,31 +113,143 @@ function TenantPage() {
 
   };
 
+  const extendContract = () => {
 
-  const addPayment = () => {
+  if (!extendMonths) return;
 
-    if (!date || !payMonth) return;
-
-    axios.post("http://localhost:5000/payments", {
-
+  axios.post(
+    "http://localhost:5000/tenant/extend",
+    {
       tenant_id: tenant.id,
-      month: payMonth,
-      year: payYear,
-      amount: tenant.rent,
-      method,
-      payment_date: date + "T00:00:00"
+      months: extendMonths
+    }
+  )
+  .then(() => {
 
-    })
-      .then(() => {
+    setExtendMonths("");
+    window.location.reload();
 
-        axios
-          .get("http://localhost:5000/payments/" + tenant.id)
-          .then(r => setPayments(r.data));
+  });
 
-      });
+};
+
+
+  const updateTenant = () => {
+
+    axios.post(
+      "http://localhost:5000/tenant/update",
+      {
+        tenant_id: tenant.id,
+        name: editName,
+        phone: editPhone,
+        rent: editRent,
+        advance: editAdvance,
+        contract_months: editContract,
+        start_date: editStartDate
+      }
+    )
+    .then(() => {
+
+      setEditMode(false);
+      window.location.reload();
+
+    });
 
   };
 
+
+const addPayment = () => {
+
+  if (!date || !payMonth) return;
+
+  const today = new Date();
+
+  const currentMonth = today.getMonth() + 1;
+  const currentYear = today.getFullYear();
+
+  let rentMonth = currentMonth - 1;
+  let rentYear = currentYear;
+
+  if (rentMonth === 0) {
+    rentMonth = 12;
+    rentYear--;
+  }
+
+
+  // ✅ get tenant start
+  const start = new Date(tenant.start_date);
+
+  const startMonth = start.getMonth() + 1;
+  const startYear = start.getFullYear();
+
+
+  // ❌ before tenant start
+  if (
+    payYear < startYear ||
+    (
+      payYear === startYear &&
+      payMonth < startMonth
+    )
+  ) {
+    alert("Before tenant start date");
+    return;
+  }
+
+
+  // ❌ future year
+  if (payYear > rentYear) {
+    alert("Invalid year");
+    return;
+  }
+
+
+  // ❌ future month
+  if (
+    payYear === rentYear &&
+    payMonth > rentMonth
+  ) {
+    alert("Cannot pay for future month");
+    return;
+  }
+
+
+  axios.post("http://localhost:5000/payments", {
+
+    tenant_id: tenant.id,
+    month: payMonth,
+    year: payYear,
+    amount: tenant.rent,
+    method,
+    payment_date: date + "T00:00:00"
+
+  })
+  .then(() => {
+
+    axios
+      .get("http://localhost:5000/payments/" + tenant.id)
+      .then(r => setPayments(r.data));
+
+  });
+
+};
+
+const deletePayment = (id) => {
+
+  if (!id) return;
+
+  if (!window.confirm("Delete payment?")) return;
+
+  axios
+    .delete("http://localhost:5000/payments/" + id)
+    .then(() => {
+
+      axios
+        .get("http://localhost:5000/payments/" + tenant.id)
+        .then(r => setPayments(r.data));
+
+    });
+
+};
 
   return (
 
@@ -170,16 +292,117 @@ function TenantPage() {
               <div>Rent: {tenant.rent}</div>
               <div>Advance: {tenant.advance}</div>
               <div>Contract: {tenant.contract_months} months</div>
+
               <div>
-                Start Date:
-                {" "}
-                {new Date(tenant.start_date)
-                  .toLocaleDateString("en-GB")}
+                Start Date:{" "}
+                {tenant.start_date
+                  ? new Date(tenant.start_date)
+                      .toLocaleDateString("en-GB")
+                  : ""}
               </div>
 
             </div>
 
+            <div style={{ textAlign: "center", marginTop: "10px" }}>
+
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+
+                  setEditMode(true);
+
+                  setEditName(tenant.name);
+                  setEditPhone(tenant.phone);
+                  setEditRent(tenant.rent);
+                  setEditAdvance(tenant.advance);
+                  setEditContract(tenant.contract_months);
+
+                  setEditStartDate(
+                    tenant.start_date
+                      ? tenant.start_date.split("T")[0]
+                      : ""
+                  );
+
+                }}
+              >
+                Edit
+              </button>
+
+            </div>
+
           </div>
+          {editMode && (
+
+            <div className="card p-3 mt-3">
+
+              <h4 style={{ textAlign: "center" }}>
+                Edit Tenant
+              </h4>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center"
+                }}
+              >
+
+                <div style={{ width: "320px" }}>
+
+                  <input
+                    className="form-control mt-2"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                  />
+
+                  <input
+                    className="form-control mt-2"
+                    value={editPhone}
+                    onChange={e => setEditPhone(e.target.value)}
+                  />
+
+                  <input
+                    className="form-control mt-2"
+                    value={editRent}
+                    onChange={e => setEditRent(e.target.value)}
+                  />
+
+                  <input
+                    className="form-control mt-2"
+                    value={editAdvance}
+                    onChange={e => setEditAdvance(e.target.value)}
+                  />
+
+                  <input
+                    className="form-control mt-2"
+                    value={editContract}
+                    onChange={e => setEditContract(e.target.value)}
+                  />
+
+                  <input
+                    type="date"
+                    className="form-control mt-2"
+                    value={editStartDate}
+                    onChange={e => setEditStartDate(e.target.value)}
+                  />
+
+                  <div style={{ textAlign: "center" }}>
+
+                    <button
+                      className="btn btn-primary mt-2"
+                      onClick={updateTenant}
+                    >
+                      Update
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          )}
 
 
 
@@ -213,7 +436,9 @@ function TenantPage() {
                 <select
                   className="form-control"
                   value={payMonth}
-                  onChange={e => setPayMonth(e.target.value)}
+                  onChange={e =>
+                    setPayMonth(Number(e.target.value))
+                  }
                 >
                   <option value="">Month</option>
                   <option value="1">Jan</option>
@@ -235,7 +460,9 @@ function TenantPage() {
                 <input
                   className="form-control"
                   value={payYear}
-                  onChange={e => setPayYear(e.target.value)}
+                  onChange={e =>
+                    setPayYear(Number(e.target.value))
+                  }
                 />
               </div>
 
@@ -281,7 +508,9 @@ function TenantPage() {
                   <th>Month</th>
                   <th>Rent</th>
                   <th>Status</th>
+                  <th>Method</th>
                   <th>Payment Date</th>
+                  <th>Delete</th>
                 </tr>
               </thead>
 
@@ -290,14 +519,14 @@ function TenantPage() {
                 {payments.map((p, i) => (
 
                   <tr
-  key={i}
-  style={{
-    backgroundColor:
-      p.payment_date
-        ? "#d4edda"   // paid → green
-        : "#fff3cd"   // default → yellow
-  }}
->
+                    key={i}
+                    style={{
+                      backgroundColor:
+                        p.payment_date
+                          ? "#d4edda"
+                          : "#fff3cd"
+                    }}
+                  >
 
                     <td>
                       {
@@ -314,12 +543,23 @@ function TenantPage() {
                     <td>{tenant.rent}</td>
 
                     <td>{p.status}</td>
-
+                    <td>{p.payment_date ? p.method : "-"}</td>
                     <td>
                       {p.payment_date
                         ? new Date(p.payment_date)
-                          .toLocaleDateString("en-GB")
+                            .toLocaleDateString("en-GB")
                         : "-"}
+                    </td>
+
+                    <td>
+                      {p.id && (
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => deletePayment(p.id)}
+                        >
+                          X
+                        </button>
+                      )}
                     </td>
 
                   </tr>
@@ -332,7 +572,39 @@ function TenantPage() {
 
           </div>
 
+          {/* EXTEND CONTRACT */}
 
+            <div className="card p-3 mt-3">
+
+              <h4 style={{ textAlign: "center" }}>
+                Renew Contract
+              </h4>
+
+              <div
+                style={{
+                  maxWidth: "320px",
+                  margin: "auto",
+                  textAlign: "center"
+                }}
+              >
+
+                <input
+                  className="form-control"
+                  placeholder="Months"
+                  value={extendMonths}
+                  onChange={e => setExtendMonths(e.target.value)}
+                />
+
+                <button
+                  className="btn btn-primary mt-2"
+                  onClick={extendContract}
+                >
+                  Renew
+                </button>
+
+              </div>
+
+            </div>
 
           {/* END CONTRACT */}
 
@@ -395,80 +667,80 @@ function TenantPage() {
 
         <div className="card p-3">
 
-  <h4 style={{ textAlign: "center" }}>
-    Add Tenant
-  </h4>
+          <h4 style={{ textAlign: "center" }}>
+            Add Tenant
+          </h4>
 
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "center"
-    }}
-  >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center"
+            }}
+          >
 
-    <div style={{ width: "320px" }}>
+            <div style={{ width: "320px" }}>
 
-      <input
-        className="form-control mt-2"
-        placeholder="Name"
-        value={name}
-        onChange={e => setName(e.target.value)}
-      />
+              <input
+                className="form-control mt-2"
+                placeholder="Name"
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
 
-      <input
-        className="form-control mt-2"
-        placeholder="Phone"
-        value={phone}
-        onChange={e => setPhone(e.target.value)}
-      />
+              <input
+                className="form-control mt-2"
+                placeholder="Phone"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+              />
 
-      <input
-        className="form-control mt-2"
-        placeholder="Rent"
-        value={rent}
-        onChange={e => setRent(e.target.value)}
-      />
+              <input
+                className="form-control mt-2"
+                placeholder="Rent"
+                value={rent}
+                onChange={e => setRent(e.target.value)}
+              />
 
-      <input
-        className="form-control mt-2"
-        placeholder="Advance"
-        value={advance}
-        onChange={e => setAdvance(e.target.value)}
-      />
+              <input
+                className="form-control mt-2"
+                placeholder="Advance"
+                value={advance}
+                onChange={e => setAdvance(e.target.value)}
+              />
 
-      <input
-        className="form-control mt-2"
-        placeholder="Contract months"
-        value={contract}
-        onChange={e => setContract(e.target.value)}
-      />
+              <input
+                className="form-control mt-2"
+                placeholder="Contract months"
+                value={contract}
+                onChange={e => setContract(e.target.value)}
+              />
 
-      <label className="mt-2">
-        Start Date
-      </label>
+              <label className="mt-2">
+                Start Date
+              </label>
 
-      <input
-        type="date"
-        className="form-control"
-        value={startDate}
-        onChange={e => setStartDate(e.target.value)}
-      />
+              <input
+                type="date"
+                className="form-control"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+              />
 
-      <div style={{ textAlign: "center" }}>
-        <button
-          className="btn btn-primary mt-3"
-          style={{ width: "120px" }}
-          onClick={addTenant}
-        >
-          Save
-        </button>
-      </div>
+              <div style={{ textAlign: "center" }}>
+                <button
+                  className="btn btn-primary mt-3"
+                  style={{ width: "120px" }}
+                  onClick={addTenant}
+                >
+                  Save
+                </button>
+              </div>
 
-    </div>
+            </div>
 
-  </div>
+          </div>
 
-</div>
+        </div>
 
       )}
 

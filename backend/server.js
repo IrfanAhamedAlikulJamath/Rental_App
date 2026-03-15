@@ -183,6 +183,78 @@ app.post("/tenant", (req, res) => {
 
 });
 
+app.post("/tenant/update", (req, res) => {
+
+    const {
+        tenant_id,
+        name,
+        phone,
+        rent,
+        advance,
+        contract_months,
+        start_date
+    } = req.body;
+
+
+    db.query(
+        `
+        UPDATE tenants
+        SET
+            name = ?,
+            phone = ?,
+            rent = ?,
+            advance = ?,
+            contract_months = ?,
+            start_date = ?
+        WHERE id = ?
+        `,
+        [
+            name,
+            phone,
+            rent,
+            advance,
+            contract_months,
+            start_date,
+            tenant_id
+        ],
+        (err, result) => {
+
+            if (err) {
+                console.log(err);
+                res.send(err);
+            } else {
+                res.send("Tenant updated");
+            }
+
+        }
+    );
+
+});
+
+app.post("/tenant/extend", (req, res) => {
+
+    const { tenant_id, months } = req.body;
+
+    db.query(
+
+        "UPDATE tenants SET contract_months = contract_months + ? WHERE id=?",
+
+        [months, tenant_id],
+
+        (err, result) => {
+
+            if (err) {
+                res.send(err);
+            } else {
+                res.send("Contract extended");
+            }
+
+        }
+
+    );
+
+});
+
 
 // end contract
 app.post("/tenant/end", (req, res) => {
@@ -222,12 +294,23 @@ app.get("/payments/:tenantId", (req, res) => {
 
             const tenant = tenantResult[0];
 
-            // FIX timezone problem
             let start = new Date(tenant.start_date);
             start.setHours(0,0,0,0);
 
             let today = new Date();
             today.setHours(0,0,0,0);
+
+            let currentMonth = today.getMonth() + 1;
+            let currentYear = today.getFullYear();
+
+            let rentMonth = currentMonth - 1;
+            let rentYear = currentYear;
+
+            if (rentMonth === 0) {
+                rentMonth = 12;
+                rentYear--;
+            }
+
 
             db.query(
                 "SELECT * FROM payments WHERE tenant_id=?",
@@ -243,12 +326,31 @@ app.get("/payments/:tenantId", (req, res) => {
 
                     let d = new Date(start);
 
+                    // ✅ NEW — allow until end_date
+                    let endDate = tenant.end_date
+                        ? new Date(tenant.end_date)
+                        : null;
+
+
                     while (
-                        d.getFullYear() < today.getFullYear() ||
+
                         (
-                            d.getFullYear() === today.getFullYear() &&
-                            d.getMonth() <= today.getMonth()
+                            d.getFullYear() < rentYear ||
+
+                            (
+                                d.getFullYear() === rentYear &&
+                                (d.getMonth() + 1) <= rentMonth
+                            )
+
                         )
+
+                        &&
+
+                        (
+                            !endDate ||
+                            d <= endDate
+                        )
+
                     ) {
 
                         const m = d.getMonth() + 1;
@@ -262,11 +364,19 @@ app.get("/payments/:tenantId", (req, res) => {
 
                         months.push({
 
+                            id: found ? found.id : null,
+
                             month: m,
                             year: y,
+
                             status: found ? "Paid" : "Unpaid",
+
                             payment_date: found
                                 ? found.payment_date
+                                : null,
+
+                            method: found
+                                ? found.method
                                 : null
 
                         });
@@ -285,23 +395,78 @@ app.get("/payments/:tenantId", (req, res) => {
 
 });
 
+
+
 // add payment
 app.post("/payments", (req, res) => {
-    const { tenant_id, month, year, amount, method, payment_date } = req.body;
+
+    const {
+        tenant_id,
+        month,
+        year,
+        amount,
+        method,
+        payment_date
+    } = req.body;
+
 
     db.query(
-        "INSERT INTO payments (tenant_id, month, year, amount, method, payment_date) VALUES (?, ?, ?, ?, ?, ?)",
-        [tenant_id, month, year, amount, method, payment_date],
-        (err, result) => {
-            if (err) res.send(err);
-            else res.send("Payment added");
+
+        "SELECT * FROM payments WHERE tenant_id=? AND month=? AND year=?",
+
+        [tenant_id, month, year],
+
+        (err, rows) => {
+
+            if (err) {
+                res.send(err);
+                return;
+            }
+
+            if (rows.length > 0) {
+
+                res.send({
+                    error: "Payment already exists"
+                });
+
+                return;
+            }
+
+            db.query(
+
+                "INSERT INTO payments (tenant_id, month, year, amount, method, payment_date) VALUES (?, ?, ?, ?, ?, ?)",
+
+                [
+                    tenant_id,
+                    month,
+                    year,
+                    amount,
+                    method,
+                    payment_date
+                ],
+
+                (err2, result) => {
+
+                    if (err2) {
+                        res.send(err2);
+                    } else {
+                        res.send("Payment added");
+                    }
+
+                }
+
+            );
+
         }
+
     );
+
 });
 
 
 // delete payment
 app.delete("/payments/:id", (req, res) => {
+
     const id = req.params.id;
 
     db.query(
@@ -312,6 +477,7 @@ app.delete("/payments/:id", (req, res) => {
             else res.send("Payment deleted");
         }
     );
+
 });
 
 // ---------------- EXPENSE API ----------------
@@ -436,6 +602,7 @@ app.get("/advance", (req, res) => {
 });
 
 // ---------------- DASHBOARD API ----------------
+// ---------------- DASHBOARD API ----------------
 
 app.get("/dashboard", (req, res) => {
 
@@ -453,7 +620,8 @@ app.get("/dashboard", (req, res) => {
     };
 
 
-    // total income
+    // ---------- TOTAL INCOME ----------
+
     db.query(
         "SELECT IFNULL(SUM(amount),0) AS total_income FROM payments",
         (err, r1) => {
@@ -463,7 +631,8 @@ app.get("/dashboard", (req, res) => {
             data.total_income = Number(r1[0].total_income);
 
 
-            // total expense
+            // ---------- TOTAL EXPENSE ----------
+
             db.query(
                 "SELECT IFNULL(SUM(amount),0) AS total_expense FROM expenses",
                 (err2, r2) => {
@@ -473,7 +642,8 @@ app.get("/dashboard", (req, res) => {
                     data.total_expense = Number(r2[0].total_expense);
 
 
-                    // advance diff
+                    // ---------- ADVANCE DIFF ----------
+
                     db.query(
                         "SELECT IFNULL(SUM(diff),0) AS diff FROM advance_transactions",
                         (err3, r3) => {
@@ -489,9 +659,15 @@ app.get("/dashboard", (req, res) => {
                             }
 
 
-                            // current income
+                            // ---------- CURRENT INCOME (FIXED) ----------
+
                             db.query(
-                                "SELECT IFNULL(SUM(amount),0) AS income FROM payments WHERE month=? AND year=?",
+                                `
+                                SELECT IFNULL(SUM(amount),0) AS income
+                                FROM payments
+                                WHERE MONTH(payment_date)=?
+                                AND YEAR(payment_date)=?
+                                `,
                                 [month, year],
                                 (err4, r4) => {
 
@@ -500,9 +676,15 @@ app.get("/dashboard", (req, res) => {
                                     data.current_income = Number(r4[0].income);
 
 
-                                    // current expense
+                                    // ---------- CURRENT EXPENSE ----------
+
                                     db.query(
-                                        "SELECT IFNULL(SUM(amount),0) AS expense FROM expenses WHERE MONTH(date)=? AND YEAR(date)=?",
+                                        `
+                                        SELECT IFNULL(SUM(amount),0) AS expense
+                                        FROM expenses
+                                        WHERE MONTH(date)=?
+                                        AND YEAR(date)=?
+                                        `,
                                         [month, year],
                                         (err5, r5) => {
 
@@ -511,7 +693,8 @@ app.get("/dashboard", (req, res) => {
                                             data.current_expense = Number(r5[0].expense);
 
 
-                                            // calculate profit
+                                            // ---------- PROFIT ----------
+
                                             data.total_profit =
                                                 data.total_income -
                                                 data.total_expense;
@@ -521,7 +704,8 @@ app.get("/dashboard", (req, res) => {
                                                 data.current_expense;
 
 
-                                            // format 2 decimals
+                                            // ---------- FORMAT ----------
+
                                             data.total_income =
                                                 data.total_income.toFixed(2);
 
@@ -559,9 +743,7 @@ app.get("/dashboard", (req, res) => {
     );
 
 });
-
 // ---------------- PROPERTY DASHBOARD ----------------
-
 app.get("/property-dashboard/:id", (req, res) => {
 
     const propertyId = req.params.id;
@@ -580,7 +762,8 @@ app.get("/property-dashboard/:id", (req, res) => {
     const year = now.getFullYear();
 
 
-    // total income
+    // ================= TOTAL INCOME =================
+
     db.query(
         `
         SELECT IFNULL(SUM(p.amount),0) AS income
@@ -590,47 +773,65 @@ app.get("/property-dashboard/:id", (req, res) => {
         WHERE u.property_id = ?
         `,
         [propertyId],
+
         (err, r1) => {
 
             data.total_income = Number(r1[0].income);
 
 
-            // total expense
+            // ================= TOTAL EXPENSE =================
+
             db.query(
-                "SELECT IFNULL(SUM(amount),0) AS expense FROM expenses WHERE property_id=?",
+                `
+                SELECT IFNULL(SUM(amount),0) AS expense
+                FROM expenses
+                WHERE property_id=?
+                `,
                 [propertyId],
+
                 (err2, r2) => {
 
                     data.total_expense = Number(r2[0].expense);
 
 
-                    // current income
+                    // ================= CURRENT INCOME =================
+                    // ✅ USE payment_date (same as report)
+
                     db.query(
                         `
                         SELECT IFNULL(SUM(p.amount),0) AS income
                         FROM payments p
                         JOIN tenants t ON p.tenant_id = t.id
                         JOIN units u ON t.unit_id = u.id
-                        WHERE u.property_id=? AND p.month=? AND p.year=?
+                        WHERE u.property_id=?
+                        AND MONTH(p.payment_date)=?
+                        AND YEAR(p.payment_date)=?
                         `,
                         [propertyId, month, year],
+
                         (err3, r3) => {
 
                             data.current_income = Number(r3[0].income);
 
 
-                            // current expense
+                            // ================= CURRENT EXPENSE =================
+
                             db.query(
                                 `
                                 SELECT IFNULL(SUM(amount),0) AS expense
                                 FROM expenses
-                                WHERE property_id=? AND MONTH(date)=? AND YEAR(date)=?
+                                WHERE property_id=?
+                                AND MONTH(date)=?
+                                AND YEAR(date)=?
                                 `,
                                 [propertyId, month, year],
+
                                 (err4, r4) => {
 
                                     data.current_expense = Number(r4[0].expense);
 
+
+                                    // ================= PROFIT =================
 
                                     data.total_profit =
                                         data.total_income -
@@ -641,32 +842,48 @@ app.get("/property-dashboard/:id", (req, res) => {
                                         data.current_expense;
 
 
-                                    data.total_income = data.total_income.toFixed(2);
-                                    data.total_expense = data.total_expense.toFixed(2);
-                                    data.total_profit = data.total_profit.toFixed(2);
+                                    // ================= FORMAT =================
 
-                                    data.current_income = data.current_income.toFixed(2);
-                                    data.current_expense = data.current_expense.toFixed(2);
-                                    data.current_profit = data.current_profit.toFixed(2);
+                                    data.total_income =
+                                        data.total_income.toFixed(2);
+
+                                    data.total_expense =
+                                        data.total_expense.toFixed(2);
+
+                                    data.total_profit =
+                                        data.total_profit.toFixed(2);
+
+
+                                    data.current_income =
+                                        data.current_income.toFixed(2);
+
+                                    data.current_expense =
+                                        data.current_expense.toFixed(2);
+
+                                    data.current_profit =
+                                        data.current_profit.toFixed(2);
 
 
                                     res.send(data);
 
                                 }
+
                             );
 
                         }
+
                     );
 
                 }
+
             );
 
         }
+
     );
 
 });
 
-// ---------------- REPORT FINAL CLEAN ----------------
 // ================= FINAL REPORT API =================
 
 app.get("/report", (req, res) => {
@@ -674,15 +891,13 @@ app.get("/report", (req, res) => {
     const from = req.query.from;
     const to = req.query.to;
 
-    let data = {
-        months: []
-    };
+    let data = { months: [] };
 
     db.query(
         `
         SELECT DISTINCT ym FROM (
 
-            SELECT CONCAT(year,'-',LPAD(month,2,'0')) AS ym
+            SELECT DATE_FORMAT(payment_date,'%Y-%m') AS ym
             FROM payments
 
             UNION
@@ -696,6 +911,7 @@ app.get("/report", (req, res) => {
         ORDER BY ym
         `,
         [from, to],
+
         (err, months) => {
 
             if (err) return res.send(err);
@@ -705,13 +921,21 @@ app.get("/report", (req, res) => {
 
             let done = 0;
 
-            months.forEach((mrow) => {
+            months.forEach(mrow => {
 
                 const ym = mrow.ym;
 
                 const parts = ym.split("-");
-                const y = parseInt(parts[0]);
-                const m = parseInt(parts[1]);
+                const year = parseInt(parts[0]);
+                const month = parseInt(parts[1]);
+
+                let rentMonth = month - 1;
+                let rentYear = year;
+
+                if (rentMonth === 0) {
+                    rentMonth = 12;
+                    rentYear--;
+                }
 
                 let monthData = {
                     month: ym,
@@ -722,287 +946,567 @@ app.get("/report", (req, res) => {
 
                 // ================= UNITS =================
 
-                    db.query(
+                db.query(
 `
-                    SELECT
+SELECT
 
-                    pr.name AS property,
-                    u.unit_no,
-                    t.name AS tenant,
+pr.name AS property,
+u.unit_no,
+t.name AS tenant,
+t.rent,
+t.id AS tenant_id,
+t.start_date,
 
-                    IFNULL(
-                        SUM(
-                            CASE
-                                WHEN p.month = ?
-                                AND p.year = ?
-                                THEN p.amount
-                                ELSE 0
-                            END
-                        ),0
-                    ) AS amount,
+IFNULL(
+    SUM(
+        CASE
+            WHEN MONTH(p.payment_date)=?
+            AND YEAR(p.payment_date)=?
+            THEN p.amount
+            ELSE 0
+        END
+    ),0
+) AS amount,
 
-                    MAX(
-                        CASE
-                            WHEN p.month = ?
-                            AND p.year = ?
-                            THEN p.method
-                        END
-                    ) AS method,
+MAX(
+    CASE
+        WHEN MONTH(p.payment_date)=?
+        AND YEAR(p.payment_date)=?
+        THEN p.method
+    END
+) AS method,
 
-                    DATE_FORMAT(
-                        MAX(
-                            CASE
-                                WHEN p.month = ?
-                                AND p.year = ?
-                                THEN p.payment_date
-                            END
-                        ),
-                        '%Y-%m-%d'
-                    ) AS payment_date
+DATE_FORMAT(
+    MAX(
+        CASE
+            WHEN MONTH(p.payment_date)=?
+            AND YEAR(p.payment_date)=?
+            THEN p.payment_date
+        END
+    ),
+    '%Y-%m-%d'
+) AS payment_date
 
-                    FROM units u
+FROM units u
 
-                    LEFT JOIN properties pr
-                    ON pr.id = u.property_id
+LEFT JOIN properties pr
+ON pr.id = u.property_id
 
-                    LEFT JOIN tenants t
-                    ON t.unit_id = u.id
-                    AND t.start_date <= LAST_DAY(CONCAT(?, '-', ?, '-01'))
-                    AND (t.end_date IS NULL OR t.end_date >= CONCAT(?, '-', ?, '-01'))
+LEFT JOIN tenants t
+ON t.unit_id = u.id
+AND t.start_date <= LAST_DAY(CONCAT(?, '-', ?, '-01'))
+AND (t.end_date IS NULL OR t.end_date >= CONCAT(?, '-', ?, '-01'))
 
-                    LEFT JOIN payments p
-                    ON p.tenant_id = t.id
+LEFT JOIN payments p
+ON p.tenant_id = t.id
 
-                    GROUP BY u.id, pr.name, u.unit_no, t.name
+GROUP BY u.id, pr.name, u.unit_no, t.name, t.rent, t.id, t.start_date
 
-                    ORDER BY pr.name, u.unit_no
-                    `,
-                    [m,y,m,y,m,y, y,m, y,m],
+ORDER BY pr.name, u.unit_no
+`,
+[
+month, year,
+month, year,
+month, year,
+year, month,
+year, month
+],
 
-                    (err2, unitRows) => {
+(err2, rows) => {
 
-                        if (err2) return res.send(err2);
+    if (err2) return res.send(err2);
 
-                        monthData.units = unitRows;
+    let done2 = 0;
+
+    rows.forEach(r => {
+
+        r.paid_for = "-";
+
+        if (!r.tenant_id) {
+
+            r.status = "-";
+            r.pending = "-";
+
+            done2++;
+            if (done2 === rows.length) finish();
+            return;
+        }
+
+        db.query(
+            "SELECT month,year,payment_date FROM payments WHERE tenant_id=?",
+            [r.tenant_id],
+            (err3, payRows) => {
+
+                if (err3) {
+
+                    r.status = "-";
+                    r.pending = "-";
+
+                } else {
+
+                    const names = [
+                        "",
+                        "Jan","Feb","Mar","Apr","May","Jun",
+                        "Jul","Aug","Sep","Oct","Nov","Dec"
+                    ];
 
 
-                        // ================= EXPENSES =================
+                    // ================= PAID FOR (RANGE) =================
 
-                        db.query(
-                            `
-                            SELECT
+                    let paidMonths = [];
 
-                            pr.name AS property,
-                            e.type,
-                            e.amount,
+                    payRows.forEach(p => {
 
-                            DATE_FORMAT(e.date,'%Y-%m-%d') AS date,
+                        const pd = new Date(p.payment_date);
 
-                            e.method
+                        if (
+                            pd.getMonth() + 1 === month &&
+                            pd.getFullYear() === year
+                        ) {
 
-                            FROM expenses e
+                            paidMonths.push({
+                                m: p.month,
+                                y: p.year
+                            });
 
-                            LEFT JOIN properties pr
-                            ON pr.id = e.property_id
+                        }
 
-                            WHERE MONTH(e.date) = ?
-                            AND YEAR(e.date) = ?
+                    });
 
-                            ORDER BY pr.name
-                            `,
-                            [m, y],
+                    paidMonths.sort((a, b) => {
 
-                            (err3, expRows) => {
+                        if (a.y === b.y)
+                            return a.m - b.m;
 
-                                if (err3) return res.send(err3);
+                        return a.y - b.y;
+                    });
 
-                                monthData.expenses = expRows;
 
-                                data.months.push(monthData);
+                    if (paidMonths.length > 0) {
 
-                                done++;
+                        let first = paidMonths[0];
+                        let last = paidMonths[0];
 
-                                if (done === months.length) {
-                                    res.send(data);
-                                }
+                        let continuous = true;
 
+                        for (let i = 1; i < paidMonths.length; i++) {
+
+                            let prev = paidMonths[i - 1];
+                            let cur = paidMonths[i];
+
+                            let prevDate =
+                                prev.y * 12 + prev.m;
+
+                            let curDate =
+                                cur.y * 12 + cur.m;
+
+                            if (curDate !== prevDate + 1) {
+                                continuous = false;
+                                break;
                             }
-                        );
+
+                            last = cur;
+                        }
+
+                        const f =
+                            names[first.m] +
+                            " " +
+                            String(first.y).slice(2);
+
+                        const l =
+                            names[last.m] +
+                            " " +
+                            String(last.y).slice(2);
+
+                        if (continuous && paidMonths.length > 1) {
+
+                            r.paid_for = f + "-" + l;
+
+                        } else {
+
+                            r.paid_for =
+                                paidMonths.map(p =>
+                                    names[p.m] +
+                                    " " +
+                                    String(p.y).slice(2)
+                                ).join(", ");
+
+                        }
+
+                    } else {
+
+                        r.paid_for = "-";
 
                     }
-                );
+
+
+                    // ================= PENDING =================
+
+                    let start = new Date(r.start_date);
+                    let d = new Date(start);
+
+                    let firstPending = null;
+                    let lastPending = null;
+                    let firstYear = null;
+                    let lastYear = null;
+
+                    while (
+
+                        d.getFullYear() < rentYear ||
+
+                        (
+                            d.getFullYear() === rentYear &&
+                            d.getMonth() + 1 <= rentMonth
+                        )
+
+                    ) {
+
+                        const m = d.getMonth() + 1;
+                        const y = d.getFullYear();
+
+                        const found = payRows.find(
+                            p =>
+                                Number(p.month) === m &&
+                                Number(p.year) === y
+                        );
+
+                        if (!found) {
+
+                            if (!firstPending) {
+                                firstPending = m;
+                                firstYear = y;
+                            }
+
+                            lastPending = m;
+                            lastYear = y;
+                        }
+
+                        d.setMonth(d.getMonth() + 1);
+                    }
+
+                    if (!firstPending) {
+
+                        r.pending = "-";
+                        r.status = "Paid";
+
+                    } else {
+
+                        const f =
+                            names[firstPending] +
+                            " " +
+                            String(firstYear).slice(2);
+
+                        const l =
+                            names[lastPending] +
+                            " " +
+                            String(lastYear).slice(2);
+
+                        r.pending =
+                            (firstPending === lastPending &&
+                             firstYear === lastYear)
+                                ? f
+                                : f + "-" + l;
+
+                        const foundPrev = payRows.find(
+                            p =>
+                                Number(p.month) === rentMonth &&
+                                Number(p.year) === rentYear
+                        );
+
+                        r.status =
+                            foundPrev ? "Paid" : "Unpaid";
+                    }
+
+                }
+
+                done2++;
+
+                if (done2 === rows.length)
+                    finish();
+
+            }
+        );
+
+    });
+
+
+    function finish() {
+
+        monthData.units = rows;
+
+        db.query(
+            `
+            SELECT
+
+            pr.name AS property,
+            e.type,
+            e.amount,
+            e.method,
+            DATE_FORMAT(e.date,'%Y-%m-%d') AS date
+
+            FROM expenses e
+
+            LEFT JOIN properties pr
+            ON pr.id = e.property_id
+
+            WHERE MONTH(e.date)=?
+            AND YEAR(e.date)=?
+            `,
+            [month, year],
+
+            (err4, expRows) => {
+
+                monthData.expenses = expRows;
+
+                data.months.push(monthData);
+
+                done++;
+
+                if (done === months.length) {
+                    res.send(data);
+                }
+
+            }
+        );
+
+    }
+
+});
 
             });
 
         }
+
     );
 
 });
-
 // property full details
-
 app.get("/property-details/:id", (req, res) => {
 
     const propertyId = req.params.id;
 
     const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
+
+    let currentMonth = now.getMonth() + 1;
+    let currentYear = now.getFullYear();
+
+    // previous month for rent status
+    let rentMonth = currentMonth - 1;
+    let rentYear = currentYear;
+
+    if (rentMonth === 0) {
+        rentMonth = 12;
+        rentYear--;
+    }
+
 
     db.query(
 
-        `
-        SELECT
+`
+SELECT
 
-        u.id,
-        u.unit_no,
-        u.type,
+u.id,
+u.unit_no,
+u.type,
 
-        t.id AS tenant_id,
-        t.name,
-        t.rent,
-        t.contract_months,
-        t.start_date,
+t.id AS tenant_id,
+t.name,
+t.rent,
+t.contract_months,
+t.start_date,
 
-        (
-            SELECT COUNT(*)
-            FROM payments p
-            WHERE p.tenant_id = t.id
-            AND p.month = ?
-            AND p.year = ?
-        ) AS paid
+(
+    SELECT COUNT(*)
+    FROM payments p
+    WHERE p.tenant_id = t.id
+    AND p.month = ?
+    AND p.year = ?
+) AS paid
 
-        FROM units u
+FROM units u
 
-        LEFT JOIN tenants t
-        ON t.unit_id = u.id
-        AND t.end_date IS NULL
+LEFT JOIN tenants t
+ON t.unit_id = u.id
+AND t.start_date <= LAST_DAY(CONCAT(?, '-', ?, '-01'))
+AND (t.end_date IS NULL OR t.end_date >= CONCAT(?, '-', ?, '-01'))
 
-        WHERE u.property_id = ?
-        `,
-        [currentMonth, currentYear, propertyId],
+WHERE u.property_id = ?
+`,
+[
+rentMonth, rentYear,
+currentYear, currentMonth,
+currentYear, currentMonth,
+propertyId
+],
 
-        (err, result) => {
+(err, result) => {
 
-            if (err) {
-                res.send(err);
-                return;
-            }
+    if (err) {
+        res.send(err);
+        return;
+    }
 
-            const today = new Date();
+    const today = new Date();
 
-            let done = 0;
+    let done = 0;
 
-            result.forEach((r, index) => {
+    result.forEach((r) => {
 
-                if (!r.tenant_id) {
-                    r.remaining = null;
-                    r.pending = "-";
-                    done++;
-                    if (done === result.length) res.send(result);
-                    return;
-                }
+        if (!r.tenant_id) {
 
-                // contract remaining
+            r.remaining = null;
+            r.pending = "-";
+            r.paid = 0;
 
-                let remaining = null;
+            done++;
+            if (done === result.length) res.send(result);
 
-                if (r.contract_months && r.start_date) {
-
-                    const start = new Date(r.start_date);
-
-                    const monthsPassed =
-                        (today.getFullYear() - start.getFullYear()) * 12 +
-                        (today.getMonth() - start.getMonth());
-
-                    remaining = r.contract_months - monthsPassed;
-
-                    if (remaining < 0) remaining = 0;
-                }
-
-                r.remaining = remaining;
-
-
-                // get pending months
-
-                db.query(
-                    "SELECT month,year FROM payments WHERE tenant_id=?",
-                    [r.tenant_id],
-                    (err2, payRows) => {
-
-                        if (err2) {
-                            r.pending = "-";
-                        } else {
-
-                            let start = new Date(r.start_date);
-                            let d = new Date(start);
-
-                            let firstPending = null;
-                            let lastPending = null;
-
-                            while (
-                                d.getFullYear() < currentYear ||
-                                (
-                                    d.getFullYear() === currentYear &&
-                                    d.getMonth() + 1 <= currentMonth
-                                )
-                            ) {
-
-                                const m = d.getMonth() + 1;
-                                const y = d.getFullYear();
-
-                                const found = payRows.find(
-                                    p =>
-                                        Number(p.month) === m &&
-                                        Number(p.year) === y
-                                );
-
-                                if (!found) {
-
-                                    if (!firstPending) {
-                                        firstPending = m;
-                                    }
-
-                                    lastPending = m;
-                                }
-
-                                d.setMonth(d.getMonth() + 1);
-                            }
-
-                            if (!firstPending) {
-                                r.pending = "-";
-                            } else {
-
-                                const months = [
-                                    "Jan","Feb","Mar","Apr","May","Jun",
-                                    "Jul","Aug","Sep","Oct","Nov","Dec"
-                                ];
-
-                                r.pending =
-                                    months[firstPending - 1] +
-                                    (lastPending !== firstPending
-                                        ? "-" + months[lastPending - 1]
-                                        : "");
-                            }
-                        }
-
-                        done++;
-
-                        if (done === result.length) {
-                            res.send(result);
-                        }
-
-                    }
-                );
-
-            });
-
+            return;
         }
 
-    );
+
+        // ================= CONTRACT =================
+
+        let remaining = null;
+
+        if (r.contract_months && r.start_date) {
+
+            const start = new Date(r.start_date);
+
+            const monthsPassed =
+                (today.getFullYear() - start.getFullYear()) * 12 +
+                (today.getMonth() - start.getMonth());
+
+            remaining = r.contract_months - monthsPassed;
+
+            if (remaining < 0) remaining = 0;
+        }
+
+        r.remaining = remaining;
+
+
+        // ================= CHECK IF TENANT EXISTED IN RENT MONTH =================
+
+        let startDate = new Date(r.start_date);
+
+        let existedInRentMonth =
+
+            startDate.getFullYear() < rentYear ||
+
+            (
+                startDate.getFullYear() === rentYear &&
+                (startDate.getMonth() + 1) <= rentMonth
+            );
+
+
+        if (!existedInRentMonth) {
+
+            // flat was vacant in previous month
+            r.pending = "-";
+            r.paid = 0;
+
+            done++;
+
+            if (done === result.length) {
+                res.send(result);
+            }
+
+            return;
+        }
+
+
+        // ================= PENDING =================
+
+        db.query(
+            "SELECT month,year FROM payments WHERE tenant_id=?",
+            [r.tenant_id],
+
+            (err2, payRows) => {
+
+                if (err2) {
+
+                    r.pending = "-";
+
+                } else {
+
+                    let start = new Date(r.start_date);
+
+                    let d = new Date(start);
+
+                    let firstPending = null;
+                    let lastPending = null;
+
+
+                    while (
+
+                        d.getFullYear() < rentYear ||
+
+                        (
+                            d.getFullYear() === rentYear &&
+                            d.getMonth() + 1 <= rentMonth
+                        )
+
+                    ) {
+
+                        const m = d.getMonth() + 1;
+                        const y = d.getFullYear();
+
+                        const found = payRows.find(
+                            p =>
+                                Number(p.month) === m &&
+                                Number(p.year) === y
+                        );
+
+                        if (!found) {
+
+                            if (!firstPending)
+                                firstPending = m;
+
+                            lastPending = m;
+                        }
+
+                        d.setMonth(d.getMonth() + 1);
+                    }
+
+
+                    if (!firstPending) {
+
+                        r.pending = "-";
+
+                    } else {
+
+                        const names = [
+                            "",
+                            "Jan","Feb","Mar","Apr","May","Jun",
+                            "Jul","Aug","Sep","Oct","Nov","Dec"
+                        ];
+
+                        r.pending =
+                            names[firstPending] +
+                            (
+                                lastPending !== firstPending
+                                ? "-" + names[lastPending]
+                                : ""
+                            );
+                    }
+
+                }
+
+                done++;
+
+                if (done === result.length) {
+                    res.send(result);
+                }
+
+            }
+
+        );
+
+    });
 
 });
 
+});
 
 // LOGIN API
 

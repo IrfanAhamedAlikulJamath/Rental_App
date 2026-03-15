@@ -187,9 +187,9 @@ function PropertyPage() {
               <th>Type</th>
               <th>Tenant</th>
               <th>Rent</th>
-              <th>Status</th>
+              <th>Current Status</th>
               <th>Pending</th>
-              <th>Contract</th>
+              <th>Contract Ends</th>
             </tr>
 
           </thead>
@@ -208,7 +208,25 @@ function PropertyPage() {
                 <td>{u.type}</td>
                 <td>{u.name ? u.name : "Vacant"}</td>
                 <td>{u.rent ? u.rent : "-"}</td>
-                <td>{u.paid > 0 ? "✔" : "❌"}</td>
+                <td
+                  style={{
+                    fontWeight: "bold",
+                    color:
+                      !u.name || (u.pending === "-" && u.paid === 0)
+                        ? "black"
+                        : u.paid > 0
+                        ? "green"
+                        : "red"
+                  }}
+                >
+                  {
+                    !u.name || (u.pending === "-" && u.paid === 0)
+                      ? "-"
+                      : u.paid > 0
+                      ? "Paid"
+                      : "Unpaid"
+                  }
+                </td>
                 <td>{u.pending ? u.pending : "-"}</td>
                 <td style={{ textAlign: "center", verticalAlign: "middle" }}>
 
