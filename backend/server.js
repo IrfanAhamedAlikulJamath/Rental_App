@@ -885,7 +885,6 @@ app.get("/property-dashboard/:id", (req, res) => {
 });
 
 // ================= FINAL REPORT API =================
-
 app.get("/report", (req, res) => {
 
     const from = req.query.from;
@@ -992,15 +991,41 @@ FROM units u
 LEFT JOIN properties pr
 ON pr.id = u.property_id
 
+
 LEFT JOIN tenants t
-ON t.unit_id = u.id
-AND t.start_date <= LAST_DAY(CONCAT(?, '-', ?, '-01'))
-AND (t.end_date IS NULL OR t.end_date >= CONCAT(?, '-', ?, '-01'))
+ON t.id = (
+
+    SELECT tt.id
+    FROM tenants tt
+
+    WHERE tt.unit_id = u.id
+
+    AND tt.start_date <= LAST_DAY(CONCAT(?, '-', ?, '-01'))
+
+    AND (
+        tt.end_date IS NULL
+        OR tt.end_date > LAST_DAY(CONCAT(?, '-', ?, '-01'))
+    )
+
+    ORDER BY tt.start_date DESC
+    LIMIT 1
+
+)
+
 
 LEFT JOIN payments p
 ON p.tenant_id = t.id
 
-GROUP BY u.id, pr.name, u.unit_no, t.name, t.rent, t.id, t.start_date
+
+GROUP BY
+u.id,
+pr.name,
+u.unit_no,
+t.name,
+t.rent,
+t.id,
+t.start_date
+
 
 ORDER BY pr.name, u.unit_no
 `,
@@ -1035,6 +1060,7 @@ year, month
         db.query(
             "SELECT month,year,payment_date FROM payments WHERE tenant_id=?",
             [r.tenant_id],
+
             (err3, payRows) => {
 
                 if (err3) {
@@ -1051,7 +1077,21 @@ year, month
                     ];
 
 
-                    // ================= PAID FOR (RANGE) =================
+                    // ========= CHECK EXIST LAST MONTH =========
+
+                    let startDate = new Date(r.start_date);
+
+                    let existedInRentMonth =
+
+                        startDate.getFullYear() < rentYear ||
+
+                        (
+                            startDate.getFullYear() === rentYear &&
+                            (startDate.getMonth() + 1) <= rentMonth
+                        );
+
+
+                    // ========= PAID FOR =========
 
                     let paidMonths = [];
 
@@ -1075,80 +1115,74 @@ year, month
 
                     paidMonths.sort((a, b) => {
 
-                        if (a.y === b.y)
-                            return a.m - b.m;
+                            if (a.y === b.y)
+                                return a.m - b.m;
 
-                        return a.y - b.y;
-                    });
+                            return a.y - b.y;
+                        });
 
 
-                    if (paidMonths.length > 0) {
+                        if (paidMonths.length > 0) {
 
-                        let first = paidMonths[0];
-                        let last = paidMonths[0];
+                            let continuous = true;
 
-                        let continuous = true;
+                            for (let i = 1; i < paidMonths.length; i++) {
 
-                        for (let i = 1; i < paidMonths.length; i++) {
+                                let prev = paidMonths[i - 1];
+                                let cur = paidMonths[i];
 
-                            let prev = paidMonths[i - 1];
-                            let cur = paidMonths[i];
+                                let prevIndex = prev.y * 12 + prev.m;
+                                let curIndex = cur.y * 12 + cur.m;
 
-                            let prevDate =
-                                prev.y * 12 + prev.m;
+                                if (curIndex !== prevIndex + 1) {
 
-                            let curDate =
-                                cur.y * 12 + cur.m;
+                                    continuous = false;
+                                    break;
+                                }
 
-                            if (curDate !== prevDate + 1) {
-                                continuous = false;
-                                break;
                             }
 
-                            last = cur;
-                        }
+                            if (continuous && paidMonths.length > 1) {
 
-                        const f =
-                            names[first.m] +
-                            " " +
-                            String(first.y).slice(2);
+                                let first = paidMonths[0];
+                                let last = paidMonths[paidMonths.length - 1];
 
-                        const l =
-                            names[last.m] +
-                            " " +
-                            String(last.y).slice(2);
+                                const f =
+                                    names[first.m] +
+                                    " " +
+                                    String(first.y).slice(2);
 
-                        if (continuous && paidMonths.length > 1) {
+                                const l =
+                                    names[last.m] +
+                                    " " +
+                                    String(last.y).slice(2);
 
-                            r.paid_for = f + "-" + l;
+                                r.paid_for = f + "-" + l;
+
+                            } else {
+
+                                r.paid_for =
+                                    paidMonths.map(p =>
+                                        names[p.m] +
+                                        " " +
+                                        String(p.y).slice(2)
+                                    ).join(", ");
+
+                            }
 
                         } else {
 
-                            r.paid_for =
-                                paidMonths.map(p =>
-                                    names[p.m] +
-                                    " " +
-                                    String(p.y).slice(2)
-                                ).join(", ");
+                            r.paid_for = "-";
 
                         }
 
-                    } else {
 
-                        r.paid_for = "-";
+                    // ========= PENDING =========
 
-                    }
-
-
-                    // ================= PENDING =================
+                    let pendingMonths = [];
 
                     let start = new Date(r.start_date);
                     let d = new Date(start);
-
-                    let firstPending = null;
-                    let lastPending = null;
-                    let firstYear = null;
-                    let lastYear = null;
 
                     while (
 
@@ -1172,40 +1206,91 @@ year, month
 
                         if (!found) {
 
-                            if (!firstPending) {
-                                firstPending = m;
-                                firstYear = y;
-                            }
+                            pendingMonths.push({
+                                m,
+                                y
+                            });
 
-                            lastPending = m;
-                            lastYear = y;
                         }
 
                         d.setMonth(d.getMonth() + 1);
+
                     }
 
-                    if (!firstPending) {
+
+                    if (!existedInRentMonth) {
+
+                        r.pending = "-";
+                        r.status = "-";
+
+                    }
+                    else if (pendingMonths.length === 0) {
 
                         r.pending = "-";
                         r.status = "Paid";
 
-                    } else {
+                    }
+                    else {
 
-                        const f =
-                            names[firstPending] +
-                            " " +
-                            String(firstYear).slice(2);
+                        pendingMonths.sort((a, b) => {
 
-                        const l =
-                            names[lastPending] +
-                            " " +
-                            String(lastYear).slice(2);
+                            if (a.y === b.y)
+                                return a.m - b.m;
 
-                        r.pending =
-                            (firstPending === lastPending &&
-                             firstYear === lastYear)
-                                ? f
-                                : f + "-" + l;
+                            return a.y - b.y;
+
+                        });
+
+
+                        let continuous = true;
+
+                        for (let i = 1; i < pendingMonths.length; i++) {
+
+                            let prev = pendingMonths[i - 1];
+                            let cur = pendingMonths[i];
+
+                            let prevIndex = prev.y * 12 + prev.m;
+                            let curIndex = cur.y * 12 + cur.m;
+
+                            if (curIndex !== prevIndex + 1) {
+
+                                continuous = false;
+                                break;
+
+                            }
+
+                        }
+
+
+                        if (continuous && pendingMonths.length > 1) {
+
+                            let first = pendingMonths[0];
+                            let last = pendingMonths[pendingMonths.length - 1];
+
+                            const f =
+                                names[first.m] +
+                                " " +
+                                String(first.y).slice(2);
+
+                            const l =
+                                names[last.m] +
+                                " " +
+                                String(last.y).slice(2);
+
+                            r.pending = f + "-" + l;
+
+                        }
+                        else {
+
+                            r.pending =
+                                pendingMonths.map(p =>
+                                    names[p.m] +
+                                    " " +
+                                    String(p.y).slice(2)
+                                ).join(", ");
+
+                        }
+
 
                         const foundPrev = payRows.find(
                             p =>
@@ -1215,6 +1300,7 @@ year, month
 
                         r.status =
                             foundPrev ? "Paid" : "Unpaid";
+
                     }
 
                 }
@@ -1225,6 +1311,7 @@ year, month
                     finish();
 
             }
+
         );
 
     });
@@ -1267,6 +1354,7 @@ year, month
                 }
 
             }
+
         );
 
     }
@@ -1290,7 +1378,7 @@ app.get("/property-details/:id", (req, res) => {
     let currentMonth = now.getMonth() + 1;
     let currentYear = now.getFullYear();
 
-    // previous month for rent status
+    // previous month for status
     let rentMonth = currentMonth - 1;
     let rentYear = currentYear;
 
@@ -1314,6 +1402,7 @@ t.name,
 t.rent,
 t.contract_months,
 t.start_date,
+t.end_date,
 
 (
     SELECT COUNT(*)
@@ -1323,19 +1412,23 @@ t.start_date,
     AND p.year = ?
 ) AS paid
 
+
 FROM units u
+
 
 LEFT JOIN tenants t
 ON t.unit_id = u.id
-AND t.start_date <= LAST_DAY(CONCAT(?, '-', ?, '-01'))
-AND (t.end_date IS NULL OR t.end_date >= CONCAT(?, '-', ?, '-01'))
+AND t.end_date IS NULL
+
 
 WHERE u.property_id = ?
+
+ORDER BY u.unit_no
+
 `,
 [
-rentMonth, rentYear,
-currentYear, currentMonth,
-currentYear, currentMonth,
+rentMonth,
+rentYear,
 propertyId
 ],
 
@@ -1352,20 +1445,29 @@ propertyId
 
     result.forEach((r) => {
 
+        // -------- VACANT --------
+
         if (!r.tenant_id) {
+
+            r.name = null;
+            r.rent = null;
+            r.contract_months = null;
+            r.start_date = null;
 
             r.remaining = null;
             r.pending = "-";
             r.paid = 0;
 
             done++;
-            if (done === result.length) res.send(result);
+
+            if (done === result.length)
+                res.send(result);
 
             return;
         }
 
 
-        // ================= CONTRACT =================
+        // -------- CONTRACT REMAINING --------
 
         let remaining = null;
 
@@ -1385,37 +1487,7 @@ propertyId
         r.remaining = remaining;
 
 
-        // ================= CHECK IF TENANT EXISTED IN RENT MONTH =================
-
-        let startDate = new Date(r.start_date);
-
-        let existedInRentMonth =
-
-            startDate.getFullYear() < rentYear ||
-
-            (
-                startDate.getFullYear() === rentYear &&
-                (startDate.getMonth() + 1) <= rentMonth
-            );
-
-
-        if (!existedInRentMonth) {
-
-            // flat was vacant in previous month
-            r.pending = "-";
-            r.paid = 0;
-
-            done++;
-
-            if (done === result.length) {
-                res.send(result);
-            }
-
-            return;
-        }
-
-
-        // ================= PENDING =================
+        // -------- PENDING --------
 
         db.query(
             "SELECT month,year FROM payments WHERE tenant_id=?",
@@ -1435,7 +1507,6 @@ propertyId
 
                     let firstPending = null;
                     let lastPending = null;
-
 
                     while (
 
@@ -1485,8 +1556,8 @@ propertyId
                             names[firstPending] +
                             (
                                 lastPending !== firstPending
-                                ? "-" + names[lastPending]
-                                : ""
+                                    ? "-" + names[lastPending]
+                                    : ""
                             );
                     }
 
