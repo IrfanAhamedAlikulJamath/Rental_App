@@ -350,10 +350,11 @@ function ReportPage() {
                     <th>Tenant Name</th>
                     <th>Rent</th>
                     <th>Status</th>
-                    <th>Pending</th>
                     <th>Paid For</th>
                     <th>Method</th>
                     <th>Date</th>
+
+                    <th>Pending</th>
                   </tr>
 
                 </thead>
@@ -401,13 +402,11 @@ function ReportPage() {
                         >
                           {u.status}
                         </td>
-
-                        <td>{u.pending}</td>
-
                         <td>{u.paid_for ? u.paid_for : "-"}</td>
                         <td>{u.method ? u.method : "-"}</td>
-
                         <td>{u.payment_date ? u.payment_date : "-"}</td>
+
+                        <td>{u.pending}</td>
 
 
                       </tr>

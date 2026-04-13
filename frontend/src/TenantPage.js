@@ -36,32 +36,42 @@ function TenantPage() {
   const [editContract, setEditContract] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
 
+  const [unitNo, setUnitNo] = useState("");
 
   useEffect(() => {
 
-    axios
-      .get("http://localhost:5000/tenant/" + id)
-      .then(res => {
+  axios
+    .get("http://localhost:5000/tenant/" + id)
+    .then(res => {
 
-        if (res.data.length > 0) {
+      if (res.data.length > 0 && res.data[0].id) {
 
-          const t = res.data[0];
-          setTenant(t);
+        const t = res.data[0];
 
-          axios
-            .get("http://localhost:5000/payments/" + t.id)
-            .then(r => setPayments(r.data));
+        setTenant(t);
+        setUnitNo(t.unit_no);   // ✅ ADD THIS
 
-        } else {
+        axios
+          .get("http://localhost:5000/payments/" + t.id)
+          .then(r => setPayments(r.data));
 
-          setTenant(null);
-          setPayments([]);
+      } else {
 
-        }
+        setTenant(null);
+        setPayments([]);
 
-      });
+        // ✅ get unit no for vacant flat
+        axios
+          .get("http://localhost:5000/unit/" + id)
+          .then(r => {
+            setUnitNo(r.data.unit_no);
+          });
 
-  }, [id]);
+      }
+
+    });
+
+}, [id]);
 
 
   const addTenant = () => {
@@ -262,7 +272,7 @@ const deletePayment = (id) => {
           fontStyle: "italic"
         }}
       >
-        Unit No : {tenant?.unit_no}
+        Unit No : {unitNo}
       </h2>
 
 

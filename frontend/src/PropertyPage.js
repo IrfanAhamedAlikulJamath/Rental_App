@@ -24,6 +24,7 @@ function PropertyPage() {
   const [date, setDate] = useState("");
   const [methodExpense, setMethodExpense] = useState("cash");
 
+  const[propertyName, setPropertyName]=useState("");
 
   useEffect(() => {
 
@@ -38,6 +39,16 @@ function PropertyPage() {
     axios
       .get("http://localhost:5000/expenses/" + id)
       .then(res => setExpenses(res.data));
+
+    axios
+      .get("http://localhost:5000/properties")
+      .then(res => {
+
+        const p = res.data.find(x => x.id == id);
+
+        if (p) setPropertyName(p.name);
+
+      });
 
   }, [id]);
 
@@ -101,7 +112,7 @@ function PropertyPage() {
           fontStyle: "italic"
         }}
       >
-        Property {id}
+       {propertyName}
       </h2>
 
 

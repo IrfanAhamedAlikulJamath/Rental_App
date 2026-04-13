@@ -124,20 +124,60 @@ app.delete("/units/:id", (req, res) => {
     );
 });
 
+app.get("/unit/:id", (req, res) => {
+
+    const id = req.params.id;
+
+    db.query(
+        "SELECT unit_no FROM units WHERE id=?",
+        [id],
+        (err, result) => {
+
+            if (err) res.send(err);
+            else res.send(result[0]);
+
+        }
+    );
+
+});
+
 // ---------------- TENANT API ----------------
 
 // get tenant of unit (active tenant only)
 app.get("/tenant/:unitId", (req, res) => {
+
     const unitId = req.params.unitId;
 
     db.query(
-        "SELECT t.*, u.unit_no FROM tenants t JOIN units u ON t.unit_id = u.id WHERE t.unit_id = ? AND t.end_date IS NULL",
+
+        `
+        SELECT
+        u.unit_no,
+        t.*
+
+        FROM units u
+
+        LEFT JOIN tenants t
+        ON t.unit_id = u.id
+        AND t.end_date IS NULL
+
+        WHERE u.id = ?
+        `,
+
         [unitId],
+
         (err, result) => {
-            if (err) res.send(err);
-            else res.send(result);
+
+            if (err) {
+                res.send(err);
+            } else {
+                res.send(result);
+            }
+
         }
+
     );
+
 });
 
 
@@ -396,8 +436,6 @@ app.get("/payments/:tenantId", (req, res) => {
 });
 
 
-
-// add payment
 app.post("/payments", (req, res) => {
 
     const {
@@ -410,48 +448,104 @@ app.post("/payments", (req, res) => {
     } = req.body;
 
 
+    // 🔹 NEW: get tenant details (minimal addition)
     db.query(
+        "SELECT * FROM tenants WHERE id=?",
+        [tenant_id],
+        (err0, tRes) => {
 
-        "SELECT * FROM payments WHERE tenant_id=? AND month=? AND year=?",
-
-        [tenant_id, month, year],
-
-        (err, rows) => {
-
-            if (err) {
-                res.send(err);
+            if (err0) {
+                res.send(err0);
                 return;
             }
 
-            if (rows.length > 0) {
+            const t = tRes[0];
 
-                res.send({
-                    error: "Payment already exists"
-                });
-
+            if (!t) {
+                res.send({ error: "Tenant not found" });
                 return;
             }
 
+            const start = new Date(t.start_date);
+
+            // ❌ before start
+            if (
+                year < start.getFullYear() ||
+                (
+                    year === start.getFullYear() &&
+                    month < start.getMonth() + 1
+                )
+            ) {
+                res.send({ error: "Before tenant start" });
+                return;
+            }
+
+            // ❌ after end
+            if (t.end_date) {
+
+                const end = new Date(t.end_date);
+
+                if (
+                    year > end.getFullYear() ||
+                    (
+                        year === end.getFullYear() &&
+                        month > end.getMonth() + 1
+                    )
+                ) {
+                    res.send({ error: "After contract ended" });
+                    return;
+                }
+
+            }
+
+
+            // 🔹 YOUR EXISTING CODE (unchanged)
             db.query(
 
-                "INSERT INTO payments (tenant_id, month, year, amount, method, payment_date) VALUES (?, ?, ?, ?, ?, ?)",
+                "SELECT * FROM payments WHERE tenant_id=? AND month=? AND year=?",
 
-                [
-                    tenant_id,
-                    month,
-                    year,
-                    amount,
-                    method,
-                    payment_date
-                ],
+                [tenant_id, month, year],
 
-                (err2, result) => {
+                (err, rows) => {
 
-                    if (err2) {
-                        res.send(err2);
-                    } else {
-                        res.send("Payment added");
+                    if (err) {
+                        res.send(err);
+                        return;
                     }
+
+                    if (rows.length > 0) {
+
+                        res.send({
+                            error: "Payment already exists"
+                        });
+
+                        return;
+                    }
+
+                    db.query(
+
+                        "INSERT INTO payments (tenant_id, month, year, amount, method, payment_date) VALUES (?, ?, ?, ?, ?, ?)",
+
+                        [
+                            tenant_id,
+                            month,
+                            year,
+                            amount,
+                            method,
+                            payment_date
+                        ],
+
+                        (err2, result) => {
+
+                            if (err2) {
+                                res.send(err2);
+                            } else {
+                                res.send("Payment added");
+                            }
+
+                        }
+
+                    );
 
                 }
 
@@ -959,8 +1053,8 @@ t.start_date,
 IFNULL(
     SUM(
         CASE
-            WHEN MONTH(p.payment_date)=?
-            AND YEAR(p.payment_date)=?
+            WHEN p.month = ?
+            AND p.year = ?
             THEN p.amount
             ELSE 0
         END
@@ -969,8 +1063,8 @@ IFNULL(
 
 MAX(
     CASE
-        WHEN MONTH(p.payment_date)=?
-        AND YEAR(p.payment_date)=?
+        WHEN p.month = ?
+        AND p.year = ?
         THEN p.method
     END
 ) AS method,
@@ -978,8 +1072,8 @@ MAX(
 DATE_FORMAT(
     MAX(
         CASE
-            WHEN MONTH(p.payment_date)=?
-            AND YEAR(p.payment_date)=?
+            WHEN p.month = ?
+            AND p.year = ?
             THEN p.payment_date
         END
     ),
@@ -1030,13 +1124,12 @@ t.start_date
 ORDER BY pr.name, u.unit_no
 `,
 [
-month, year,
-month, year,
-month, year,
+rentMonth, rentYear,
+rentMonth, rentYear,
+rentMonth, rentYear,
 year, month,
 year, month
 ],
-
 (err2, rows) => {
 
     if (err2) return res.send(err2);
@@ -1100,8 +1193,9 @@ year, month
                         const pd = new Date(p.payment_date);
 
                         if (
-                            pd.getMonth() + 1 === month &&
-                            pd.getFullYear() === year
+                               Number(p.month) === rentMonth &&
+                               Number(p.year) === rentYear
+                         
                         ) {
 
                             paidMonths.push({
@@ -1486,92 +1580,147 @@ propertyId
 
         r.remaining = remaining;
 
+        // ================= PENDING =================
 
-        // -------- PENDING --------
+            db.query(
+                "SELECT month,year FROM payments WHERE tenant_id=?",
+                [r.tenant_id],
 
-        db.query(
-            "SELECT month,year FROM payments WHERE tenant_id=?",
-            [r.tenant_id],
+                (err2, payRows) => {
 
-            (err2, payRows) => {
-
-                if (err2) {
-
-                    r.pending = "-";
-
-                } else {
-
-                    let start = new Date(r.start_date);
-
-                    let d = new Date(start);
-
-                    let firstPending = null;
-                    let lastPending = null;
-
-                    while (
-
-                        d.getFullYear() < rentYear ||
-
-                        (
-                            d.getFullYear() === rentYear &&
-                            d.getMonth() + 1 <= rentMonth
-                        )
-
-                    ) {
-
-                        const m = d.getMonth() + 1;
-                        const y = d.getFullYear();
-
-                        const found = payRows.find(
-                            p =>
-                                Number(p.month) === m &&
-                                Number(p.year) === y
-                        );
-
-                        if (!found) {
-
-                            if (!firstPending)
-                                firstPending = m;
-
-                            lastPending = m;
-                        }
-
-                        d.setMonth(d.getMonth() + 1);
-                    }
-
-
-                    if (!firstPending) {
+                    if (err2) {
 
                         r.pending = "-";
 
                     } else {
 
-                        const names = [
-                            "",
-                            "Jan","Feb","Mar","Apr","May","Jun",
-                            "Jul","Aug","Sep","Oct","Nov","Dec"
-                        ];
+                        let pendingMonths = [];
 
-                        r.pending =
-                            names[firstPending] +
+                        let start = new Date(r.start_date);
+                        let d = new Date(start);
+
+                        while (
+
+                            d.getFullYear() < rentYear ||
+
                             (
-                                lastPending !== firstPending
-                                    ? "-" + names[lastPending]
-                                    : ""
+                                d.getFullYear() === rentYear &&
+                                d.getMonth() + 1 <= rentMonth
+                            )
+
+                        ) {
+
+                            const m = d.getMonth() + 1;
+                            const y = d.getFullYear();
+
+                            const found = payRows.find(
+                                p =>
+                                    Number(p.month) === m &&
+                                    Number(p.year) === y
                             );
+
+                            if (!found) {
+
+                                pendingMonths.push({
+                                    m,
+                                    y
+                                });
+
+                            }
+
+                            d.setMonth(d.getMonth() + 1);
+                        }
+
+
+                        if (pendingMonths.length === 0) {
+
+                            r.pending = "-";
+
+                        } else {
+
+                            const names = [
+                                "",
+                                "Jan","Feb","Mar","Apr","May","Jun",
+                                "Jul","Aug","Sep","Oct","Nov","Dec"
+                            ];
+
+
+                            pendingMonths.sort((a, b) => {
+
+                                if (a.y === b.y)
+                                    return a.m - b.m;
+
+                                return a.y - b.y;
+
+                            });
+
+
+                            let continuous = true;
+
+                            for (let i = 1; i < pendingMonths.length; i++) {
+
+                                let prev = pendingMonths[i - 1];
+                                let cur = pendingMonths[i];
+
+                                let prevIndex =
+                                    prev.y * 12 + prev.m;
+
+                                let curIndex =
+                                    cur.y * 12 + cur.m;
+
+                                if (curIndex !== prevIndex + 1) {
+
+                                    continuous = false;
+                                    break;
+                                }
+
+                            }
+
+
+                            if (continuous && pendingMonths.length > 1) {
+
+                                let first = pendingMonths[0];
+                                let last =
+                                    pendingMonths[
+                                        pendingMonths.length - 1
+                                    ];
+
+                                const f =
+                                    names[first.m] +
+                                    " " +
+                                    String(first.y).slice(2);
+
+                                const l =
+                                    names[last.m] +
+                                    " " +
+                                    String(last.y).slice(2);
+
+                                r.pending = f + "-" + l;
+
+                            } else {
+
+                                r.pending =
+                                    pendingMonths.map(p =>
+                                        names[p.m] +
+                                        " " +
+                                        String(p.y).slice(2)
+                                    ).join(", ");
+
+                            }
+
+                        }
+
+                    }
+
+                    done++;
+
+                    if (done === result.length) {
+                        res.send(result);
                     }
 
                 }
+            );
 
-                done++;
-
-                if (done === result.length) {
-                    res.send(result);
-                }
-
-            }
-
-        );
 
     });
 
