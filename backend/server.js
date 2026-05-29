@@ -365,8 +365,6 @@ app.get("/payments/:tenantId", (req, res) => {
                     let months = [];
 
                     let d = new Date(start);
-
-                    // ✅ NEW — allow until end_date
                     let endDate = tenant.end_date
                         ? new Date(tenant.end_date)
                         : null;
@@ -480,7 +478,6 @@ app.post("/payments", (req, res) => {
                 return;
             }
 
-            // ❌ after end
             if (t.end_date) {
 
                 const end = new Date(t.end_date);
@@ -499,7 +496,6 @@ app.post("/payments", (req, res) => {
             }
 
 
-            // 🔹 YOUR EXISTING CODE (unchanged)
             db.query(
 
                 "SELECT * FROM payments WHERE tenant_id=? AND month=? AND year=?",
@@ -696,7 +692,6 @@ app.get("/advance", (req, res) => {
 });
 
 // ---------------- DASHBOARD API ----------------
-// ---------------- DASHBOARD API ----------------
 
 app.get("/dashboard", (req, res) => {
 
@@ -889,7 +884,6 @@ app.get("/property-dashboard/:id", (req, res) => {
 
 
                     // ================= CURRENT INCOME =================
-                    // ✅ USE payment_date (same as report)
 
                     db.query(
                         `
