@@ -225,8 +225,7 @@ Install the following:
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd <YOUR_PROJECT_FOLDER>
+git clone <https://github.com/IrfanAhamedAlikulJamath/Rental_App.git>
 ```
 
 ### 2️⃣ Configure the Database
